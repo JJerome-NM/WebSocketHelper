@@ -5,29 +5,27 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
 
 @Data
-public class Request {
+public class Request<RB> {
 
     private String reqPath;
-    private String reqBody;
+    private RB reqBody;
 
-    public Request(String reqPath, String reqBody){
+    public Request(String reqPath, RB reqBody){
         this.reqBody = reqBody;
         this.reqPath = reqPath;
     }
 
-    Request(String reqBody){
+    Request(RB reqBody){
         this("/", reqBody);
     }
 
-    Request(){
-        this("/", "");
-    }
+    Request(){}
 
-    public static Request jsonToRequest(String json) throws JsonProcessingException {
+    public static Request<?> jsonToRequest(String json) throws JsonProcessingException {
         return new ObjectMapper().readValue(json, Request.class);
     }
 
-    public static String requestToJsonString(Request request) throws JsonProcessingException {
+    public static String requestToJsonString(Request<?> request) throws JsonProcessingException {
         return new ObjectMapper().writeValueAsString(request);
     }
 }

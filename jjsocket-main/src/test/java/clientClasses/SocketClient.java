@@ -20,7 +20,7 @@ public class SocketClient {
         in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
     }
 
-    public Response sendMessage(Request msg) throws IOException {
+    public Response sendMessage(Request<?> msg) throws IOException {
         out.println(Request.requestToJsonString(msg));
         return Response.jsonToResponse(in.readLine());
     }

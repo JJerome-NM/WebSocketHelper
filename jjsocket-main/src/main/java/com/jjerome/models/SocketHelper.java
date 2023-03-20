@@ -20,13 +20,12 @@ public class SocketHelper {
         this.reader = new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
     }
 
-    public Request getRequest() throws IOException {
+    public Request<?> getRequest() throws IOException {
         return Request.jsonToRequest(this.reader.readLine());
     }
 
     public void sendResponse(String resPath, String resBody, HttpStatus status) throws IOException {
-        Response response = new Response(resPath, resBody, status);
-        this.writer.println(Response.responseToJsonString(response));
+        this.sendResponse(new Response(resPath, resBody, status));
     }
 
     public void sendResponse(Response response) throws IOException {
