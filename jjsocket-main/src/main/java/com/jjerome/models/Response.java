@@ -1,35 +1,60 @@
 package com.jjerome.models;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
 import org.springframework.http.HttpStatus;
 
 @Data
-public class Response {
+public class Response<RB> {
     private String resPath;
-    private String resBody;
-    private HttpStatus resStatus;
+    private RB resBody;
+    private int resStatus;
 
-    public Response(String resPath, String resBody, HttpStatus resStatus){
+    public Response(String resPath, RB resBody, HttpStatus resStatus){
         this.resBody = resBody;
         this.resPath = resPath;
-        this.resStatus = resStatus;
+        this.resStatus = resStatus.value();
     }
 
-    public Response(String resBody, HttpStatus resStatus){
+    public Response(RB resBody, HttpStatus resStatus){
         this("/", resBody, resStatus);
     }
 
-    Response(){
-        this("/", "", HttpStatus.ACCEPTED);
+    Response(){}
+
+    public Response<RB> fromJSON(String json){
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            JavaType requestType = objectMapper.getTypeFactory().constructParametricType(Request.class, Object.class);
+            Request<RB> newRequest = objectMapper.readValue(json, requestType);
+
+            this.resPath = newRequest.getReqPath();
+            this.resBody = newRequest.getReqBody();
+
+        } catch (JsonProcessingException exception){
+            System.out.println(exception.getMessage());
+        }
+        return this;
     }
 
-    public static Response jsonToResponse(String json) throws JsonProcessingException {
+    public String toJSON(){
+        try {
+            return new ObjectMapper().writeValueAsString(this);
+        } catch (JsonProcessingException exception){
+            System.out.println(exception.getMessage());
+        }
+        return null;
+    }
+
+    @Deprecated
+    public static Response<?> jsonToResponse(String json) throws JsonProcessingException {
         return new ObjectMapper().readValue(json, Response.class);
     }
 
-    public static String responseToJsonString(Response response) throws JsonProcessingException {
+    @Deprecated
+    public static String responseToJsonString(Response<?> response) throws JsonProcessingException {
         return new ObjectMapper().writeValueAsString(response);
     }
 }

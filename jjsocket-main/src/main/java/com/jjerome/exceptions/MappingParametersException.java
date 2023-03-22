@@ -1,7 +1,7 @@
 package com.jjerome.exceptions;
 
-public class MappingParamethersException extends RuntimeException{
-    MappingParamethersException(String message){
+public class MappingParametersException extends RuntimeException{
+    public MappingParametersException(String message){
         super(message);
     }
 }

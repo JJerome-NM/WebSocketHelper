@@ -1,41 +1,44 @@
 package com.jjerome.models;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
-import java.net.Socket;
 import java.util.Map;
 import java.util.function.Function;
 
 public class SocketRequestAccepter implements Runnable {
-    private final SocketHelper socketHelper;
 
-    private final Map<String, Function<Request<?>, Response>> socketMappings;
+    private final WebSocketSession socketSession;
 
-    SocketRequestAccepter(SocketHelper socketHelper,
-                          Map<String, Function<Request<?>, Response>> socketMappings){
-        this.socketHelper = socketHelper;
+    private final Map<String, Function<TextMessage, Response<?>>> socketMappings;
+
+    private final RequestPath requestPath;
+
+    private final TextMessage textMessage;
+
+
+
+    SocketRequestAccepter(WebSocketSession socketSession,
+                          Map<String, Function<TextMessage, Response<?>>> socketMappings,
+                          RequestPath requestPath, TextMessage textMessage){
+        this.socketSession = socketSession;
         this.socketMappings = socketMappings;
-    }
-
-    SocketRequestAccepter(Socket socket,
-                          Map<String, Function<Request<?>, Response>> socketMappings) throws IOException {
-        this(new SocketHelper(socket), socketMappings);
+        this.requestPath = requestPath;
+        this.textMessage = textMessage;
     }
 
     @Override
     public void run() {
         try{
-            while (true) {
-                Request<?> request = this.socketHelper.getRequest();
+            if (this.socketMappings.containsKey(this.requestPath.getReqPath())){
+                Response<?> response = this.socketMappings.get(this.requestPath.getReqPath()).apply(this.textMessage);
 
-                if (this.socketMappings.containsKey(request.getReqPath())){
-                    Response response = this.socketMappings.get(request.getReqPath()).apply(request);
-                    this.socketHelper.sendResponse(response);
-                } else {
-                    this.socketHelper.sendResponse("/error",
-                            request.getReqPath() + " method url not found", HttpStatus.BAD_REQUEST);
-                }
+                this.socketSession.sendMessage(new TextMessage(response.toJSON()));
+            } else {
+                this.socketSession.sendMessage(new TextMessage(new Response<>(
+                        "/error", "Mapping not found", HttpStatus.BAD_REQUEST).toJSON()));
             }
         } catch (IOException exception){
             System.out.println(exception.getMessage());

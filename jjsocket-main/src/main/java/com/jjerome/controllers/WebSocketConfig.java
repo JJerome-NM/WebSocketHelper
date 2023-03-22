@@ -1,4 +1,4 @@
-package com.jjerome.configs;
+package com.jjerome.controllers;
 
 import com.jjerome.models.SocketApplication;
 import org.springframework.context.annotation.Configuration;
@@ -12,7 +12,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(new SocketApplication(), "/socket")
+        registry.addHandler(new SocketApplication("com.jjerome"), "/socket")
                 .setAllowedOrigins("*");
     }
 }
