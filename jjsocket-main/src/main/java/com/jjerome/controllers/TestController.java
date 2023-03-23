@@ -4,11 +4,8 @@ import com.jjerome.annotations.SocketConnectMapping;
 import com.jjerome.annotations.SocketController;
 import com.jjerome.annotations.SocketDisconnectMapping;
 import com.jjerome.annotations.SocketMapping;
-import com.jjerome.models.Request;
-import com.jjerome.models.Response;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.jjerome.dto.Request;
+import com.jjerome.dto.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -18,11 +15,6 @@ import java.io.IOException;
 
 @SocketController
 public class TestController {
-
-    @SocketMapping(reqPath = "/hello")
-    public Response<String> hello(Request<String> request){
-        return new Response<>("Hello client", HttpStatus.ACCEPTED);
-    }
 
     @SocketConnectMapping
     public void connectmap(WebSocketSession session){
@@ -36,18 +28,27 @@ public class TestController {
 
     @SocketDisconnectMapping
     public void disconnect(WebSocketSession session, CloseStatus status){
-        System.out.println(session);
-        System.out.println(status);
+        System.out.println(session.getId() + " - disconnected");
+    }
+
+    @SocketMapping(reqPath = "/hello")
+    public Response<String> hello(Request<String> request){
+        return new Response<>("Hello " + request.getRequestBody(), HttpStatus.ACCEPTED);
+    }
+
+    @SocketMapping(reqPath = "/setYear")
+    public Response<String> setYear(Request<Integer> request){
+        return new Response<>("Years - " + request.getRequestBody(), HttpStatus.ACCEPTED);
     }
 
     @SocketMapping(reqPath = "/getCar")
     public Response<Car> getCar(Request<Car> request){
-        Car car = request.getReqBody();
+        Car car = request.getRequestBody();
 
         System.out.println("Method car - " + car);
 
 
-        System.out.println(request.getReqBody().getClass());
+        System.out.println(request.getRequestBody().getClass());
 
         return new Response<>(new Car(2003, "BMW"), HttpStatus.ACCEPTED);
     }

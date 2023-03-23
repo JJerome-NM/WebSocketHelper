@@ -1,5 +1,6 @@
 package com.jjerome.models;
 
+import com.jjerome.dto.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -14,7 +15,7 @@ public class SocketRequestAccepter implements Runnable {
 
     private final Map<String, Function<TextMessage, Response<?>>> socketMappings;
 
-    private final RequestPath requestPath;
+    private final String requestPath;
 
     private final TextMessage textMessage;
 
@@ -22,7 +23,7 @@ public class SocketRequestAccepter implements Runnable {
 
     SocketRequestAccepter(WebSocketSession socketSession,
                           Map<String, Function<TextMessage, Response<?>>> socketMappings,
-                          RequestPath requestPath, TextMessage textMessage){
+                          String requestPath, TextMessage textMessage){
         this.socketSession = socketSession;
         this.socketMappings = socketMappings;
         this.requestPath = requestPath;
@@ -32,8 +33,8 @@ public class SocketRequestAccepter implements Runnable {
     @Override
     public void run() {
         try{
-            if (this.socketMappings.containsKey(this.requestPath.getReqPath())){
-                Response<?> response = this.socketMappings.get(this.requestPath.getReqPath()).apply(this.textMessage);
+            if (this.socketMappings.containsKey(this.requestPath)){
+                Response<?> response = this.socketMappings.get(this.requestPath).apply(this.textMessage);
 
                 this.socketSession.sendMessage(new TextMessage(response.toJSON()));
             } else {

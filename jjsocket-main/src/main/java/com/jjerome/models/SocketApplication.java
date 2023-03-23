@@ -1,13 +1,10 @@
 package com.jjerome.models;
 
-import com.jjerome.annotations.SocketConnectMapping;
 import com.jjerome.annotations.SocketController;
-import com.jjerome.annotations.SocketDisconnectMapping;
-import com.jjerome.annotations.SocketMapping;
 import com.jjerome.context.SocketContext;
-import com.jjerome.exceptions.MappingParametersException;
-import com.jjerome.exceptions.RequestPathBusy;
+import com.jjerome.dto.Response;
 import org.jetbrains.annotations.NotNull;
+import org.json.JSONObject;
 import org.reflections.Reflections;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -16,9 +13,7 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -67,14 +62,26 @@ public class SocketApplication extends TextWebSocketHandler {
         }
 
         this.allSession.remove(session.getId());
+//        System.out.println(allSession);
     }
 
     @Override
     protected void handleTextMessage(@NotNull WebSocketSession session, @NotNull TextMessage message) {
 
-        RequestPath requestPath = new RequestPath(message.getPayload());
+        JSONObject jsonObject = new JSONObject(message.getPayload());
 
-        this.executorService.submit(new SocketRequestAccepter(session, this.socketMappings, requestPath, message));
+        if (jsonObject.has("requestPath")){
+            String requestPath = jsonObject.getString("requestPath");
+
+            this.executorService.submit(new SocketRequestAccepter(session, this.socketMappings, requestPath, message));
+        } else {
+            try {
+                session.sendMessage(new TextMessage(new Response<>("/error/json/request-path",
+                        "Request path is null", HttpStatus.BAD_REQUEST).toJSON()));
+            } catch (IOException exception){
+                System.out.println(exception.getMessage());
+            }
+        }
     }
 
 

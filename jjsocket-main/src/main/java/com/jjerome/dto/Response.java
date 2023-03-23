@@ -1,4 +1,4 @@
-package com.jjerome.models;
+package com.jjerome.dto;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;
@@ -30,8 +30,8 @@ public class Response<RB> {
             JavaType requestType = objectMapper.getTypeFactory().constructParametricType(Request.class, Object.class);
             Request<RB> newRequest = objectMapper.readValue(json, requestType);
 
-            this.resPath = newRequest.getReqPath();
-            this.resBody = newRequest.getReqBody();
+            this.resPath = newRequest.getRequestPath();
+            this.resBody = newRequest.getRequestBody();
 
         } catch (JsonProcessingException exception){
             System.out.println(exception.getMessage());
