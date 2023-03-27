@@ -1,9 +1,6 @@
-package com.jjerome.controllers;
+package com.jjerome.test.MainTests;
 
-import com.jjerome.annotations.SocketConnectMapping;
-import com.jjerome.annotations.SocketController;
-import com.jjerome.annotations.SocketDisconnectMapping;
-import com.jjerome.annotations.SocketMapping;
+import com.jjerome.annotations.*;
 import com.jjerome.dto.Request;
 import com.jjerome.dto.Response;
 import org.springframework.http.HttpStatus;
@@ -17,7 +14,7 @@ import java.io.IOException;
 public class TestController {
 
     @SocketConnectMapping
-    public void connectmap(WebSocketSession session){
+    public void connectMap(WebSocketSession session){
         try{
             session.sendMessage(new TextMessage("Hello user"));
         } catch (IOException exception){
@@ -33,15 +30,16 @@ public class TestController {
 
     @SocketMapping(reqPath = "/hello")
     public Response<String> hello(Request<String> request){
-        return new Response<>("Hello " + request.getRequestBody(), HttpStatus.ACCEPTED);
+        return new Response<>("/", "Hello " + request.getRequestBody(), 400);
     }
 
     @SocketMapping(reqPath = "/setYear")
     public Response<String> setYear(Request<Integer> request){
-        return new Response<>("Years - " + request.getRequestBody(), HttpStatus.ACCEPTED);
+        return new Response<>("/", "Years - " + request.getRequestBody(), 400);
     }
 
     @SocketMapping(reqPath = "/getCar")
+    @SocketMappingFilter(filter = MappingFilter.class)
     public Response<Car> getCar(Request<Car> request){
         Car car = request.getRequestBody();
 
@@ -50,7 +48,7 @@ public class TestController {
 
         System.out.println(request.getRequestBody().getClass());
 
-        return new Response<>(new Car(2003, "BMW"), HttpStatus.ACCEPTED);
+        return new Response<>("/", new Car(2003, "BMW"), 400);
     }
 }
 

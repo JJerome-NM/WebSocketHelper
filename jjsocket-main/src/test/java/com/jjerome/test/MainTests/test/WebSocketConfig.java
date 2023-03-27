@@ -1,6 +1,7 @@
-package com.jjerome.controllers;
+package com.jjerome.test.MainTests.test;
 
 import com.jjerome.models.SocketApplication;
+import com.jjerome.test.MainTests.test.MainTests;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
@@ -12,6 +13,6 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(new SocketApplication(MainController.class), "/socket");
+        registry.addHandler(new SocketApplication(MainTests.class), "/socket");
     }
 }

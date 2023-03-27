@@ -1,4 +1,4 @@
-package com.jjerome.controllers;
+package com.jjerome.test.MainTests;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
