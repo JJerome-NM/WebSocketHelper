@@ -3,6 +3,8 @@ package com.jjerome.models;
 import com.jjerome.dto.Response;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
@@ -13,6 +15,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.BiFunction;
 
 public class SocketRequestAccepter {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(SocketRequestAccepter.class);
 
     private final Map<String, BiFunction<WebSocketSession ,TextMessage, Response<?>>> methodMappings;
 
@@ -37,7 +41,7 @@ public class SocketRequestAccepter {
                                 ResponseErrors.FILTERING_FAIL.get())));
                         return;
                     } catch (IOException exception){
-                        System.out.println(exception.getMessage());
+                        LOGGER.error(exception.getMessage());
                         return;
                     }
                 }
@@ -55,7 +59,7 @@ public class SocketRequestAccepter {
 
                         session.sendMessage(new TextMessage(ResponseMapper.toJSON(response)));
                     } catch (IOException exception){
-                        System.out.println(exception.getMessage());
+                        LOGGER.error(exception.getMessage());
                     }
                 });
             } else {
@@ -63,7 +67,7 @@ public class SocketRequestAccepter {
                     session.sendMessage(new TextMessage(ResponseMapper.toJSON(
                             ResponseErrors.REQUEST_PATH_NULL.get())));
                 } catch (IOException exception){
-                    System.out.println(exception.getMessage());
+                    LOGGER.error(exception.getMessage());
                 }
             }
         });

@@ -3,7 +3,8 @@ package com.jjerome.test.MainTests;
 import com.jjerome.annotations.*;
 import com.jjerome.dto.Request;
 import com.jjerome.dto.Response;
-import org.springframework.http.HttpStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -12,9 +13,13 @@ import java.io.IOException;
 
 @SocketController
 public class TestController {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TestController.class);
+
 
     @SocketConnectMapping
     public void connectMap(WebSocketSession session){
+
+        LOGGER.info(session.getId() + " - connected");
         try{
             session.sendMessage(new TextMessage("Hello user"));
         } catch (IOException exception){

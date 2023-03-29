@@ -2,13 +2,12 @@ package com.jjerome.models;
 
 import com.jjerome.annotations.SocketComponentsScan;
 import com.jjerome.annotations.SocketController;
-import com.jjerome.annotations.SocketMapping;
-import com.jjerome.annotations.SocketMappingFilter;
 import com.jjerome.context.SocketControllersContext;
 import com.jjerome.dto.Response;
 import org.jetbrains.annotations.NotNull;
 import org.reflections.Reflections;
-import org.springframework.http.converter.json.GsonBuilderUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -16,18 +15,17 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 @Component
 public class SocketApplication extends TextWebSocketHandler {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(SocketApplication.class);
 
     private final ExecutorService executorService = Executors.newFixedThreadPool(
             Runtime.getRuntime().availableProcessors());
@@ -46,8 +44,6 @@ public class SocketApplication extends TextWebSocketHandler {
 
     private final List<SocketMessageFilter> messageFilters = new ArrayList<>();
 
-    private final Map<String, SocketMethodFilter> methodFilters = new HashMap<>();
-
     private final SocketRequestAccepter requestAccepter;
 
 //  ------------------------------------------- Constructors
@@ -58,7 +54,7 @@ public class SocketApplication extends TextWebSocketHandler {
         this.requestAccepter = new SocketRequestAccepter(this.methodMappings, this.messageFilters,
                 this.executorService);
 
-        System.out.println("SocketApplication started");
+        LOGGER.info("SocketApplication started");
     }
 
 
@@ -70,18 +66,16 @@ public class SocketApplication extends TextWebSocketHandler {
             for (SocketConnectionFilter filter : this.connectionFilters){
                 if (!filter.doFilter(session)){
                     try {
-                        Response<?> response = new Response<>("/error/filter",
-                                "Filtering failed", 406);
+                        Response<?> response = ResponseErrors.FILTERING_FAIL.get();
                         session.sendMessage(new TextMessage(ResponseMapper.toJSON(response)));
                         session.close();
                         return;
                     } catch (IOException exception){
-                        System.out.println(exception.getMessage());
+                        LOGGER.error(exception.getMessage());
                         return;
                     }
                 }
             }
-
             this.connectionMappings.forEach(mapping -> mapping.accept(session));
 
             this.allSession.put(session.getId(), session);
@@ -109,7 +103,6 @@ public class SocketApplication extends TextWebSocketHandler {
         Set<Class<?>> classes = reflections.getTypesAnnotatedWith(SocketController.class);
         classes.forEach(this::addSocketController);
 
-
         for(String pack : runningClass.getAnnotation(SocketComponentsScan.class).packages()){
             reflections = new Reflections(pack);
 
@@ -122,18 +115,16 @@ public class SocketApplication extends TextWebSocketHandler {
     private void addSocketMessageFilters(Class<? extends SocketMessageFilter> filterClass){
         try {
             this.messageFilters.add(filterClass.getDeclaredConstructor().newInstance());
-        } catch (NoSuchMethodException | InstantiationException | IllegalAccessException
-                 | InvocationTargetException exception){
-            System.out.println(exception.getMessage());
+        } catch (ReflectiveOperationException exception){
+            LOGGER.error(exception.getMessage());
         }
     }
 
     private void addSocketConnectionFilters(Class<? extends SocketConnectionFilter> filterClass){
         try {
             this.connectionFilters.add(filterClass.getDeclaredConstructor().newInstance());
-        } catch (NoSuchMethodException | InstantiationException | IllegalAccessException
-                 | InvocationTargetException exception){
-            System.out.println(exception.getMessage());
+        } catch (ReflectiveOperationException exception){
+            LOGGER.error(exception.getMessage());
         }
     }
 
@@ -146,6 +137,6 @@ public class SocketApplication extends TextWebSocketHandler {
         this.disconnectMappings.addAll(this.controllersContext.addDisconnectMappings(controllerClass));
         this.methodMappings.putAll(this.controllersContext.addRequestsMappings(controllerClass));
 
-        System.out.println(controllerClass.getName() + " class added");
+        LOGGER.info(controllerClass.getName() + " controller added successfully");
     }
 }

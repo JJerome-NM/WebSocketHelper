@@ -11,6 +11,8 @@ import com.jjerome.exceptions.RequestPathBusy;
 import com.jjerome.models.RequestMapper;
 import com.jjerome.models.ResponseErrors;
 import com.jjerome.models.SocketMethodFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -26,6 +28,8 @@ import java.util.function.Consumer;
 
 @Component
 public class SocketControllersContext {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SocketControllersContext.class);
+
 
     public Class<?> getMethodRequestGeneric(Method method){
         if (!(method.getGenericParameterTypes()[0] instanceof ParameterizedType parameterizedType)) return null;
@@ -62,12 +66,10 @@ public class SocketControllersContext {
                     try {
                         method.invoke(methodObject, webSocketSession);
                     } catch (InvocationTargetException | IllegalAccessException exception){
-                        System.out.println(exception.getMessage() + " " + exception.getCause());
+                        LOGGER.error(exception.getMessage());
                     }
                 });
-                System.out.println("addConnectionMappings");
-            } catch (NoSuchMethodException | InstantiationException | IllegalAccessException |
-                     InvocationTargetException exception){
+            } catch (ReflectiveOperationException exception){
                 throw new RuntimeException("Socket controller constructor exception");
             }
         }
@@ -88,12 +90,10 @@ public class SocketControllersContext {
                     try {
                         method.invoke(methodObject, webSocketSession, closeStatus);
                     } catch (InvocationTargetException | IllegalAccessException exception){
-                        System.out.println(exception.getMessage() + " " + exception.getCause());
+                        LOGGER.error(exception.getMessage());
                     }
                 });
-                System.out.println("addDisconnectMappings");
-            } catch (NoSuchMethodException | InstantiationException | IllegalAccessException |
-                     InvocationTargetException exception){
+            } catch (ReflectiveOperationException exception){
                 throw new RuntimeException("Socket controller constructor exception");
             }
         }
@@ -138,15 +138,11 @@ public class SocketControllersContext {
                         }
                         return response;
                     } catch (InvocationTargetException | IllegalAccessException exception){
-                        System.out.println(exception.getMessage());
-
+                        LOGGER.error(exception.getMessage());
                         return ResponseErrors.MAPPING_ERROR.get();
                     }
                 });
-
-                System.out.println("addRequestsMappings");
-            } catch (NoSuchMethodException | InstantiationException | IllegalAccessException |
-                     InvocationTargetException exception){
+            } catch (ReflectiveOperationException exception){
                 throw new RuntimeException("Socket controller constructor exception");
             }
         }
