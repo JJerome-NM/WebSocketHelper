@@ -3,6 +3,8 @@ package com.jjerome.test.MainTests;
 import com.jjerome.annotations.*;
 import com.jjerome.dto.Request;
 import com.jjerome.dto.Response;
+import com.jjerome.models.MessageSender;
+import com.jjerome.models.SocketApplication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.socket.CloseStatus;
@@ -13,47 +15,39 @@ import java.io.IOException;
 
 @SocketController
 public class TestController {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(TestController.class);
 
+    private static final MessageSender MESSAGE_SENDER = SocketApplication.getMessageSender();
 
     @SocketConnectMapping
     public void connectMap(WebSocketSession session){
 
         LOGGER.info(session.getId() + " - connected");
-        try{
-            session.sendMessage(new TextMessage("Hello user"));
-        } catch (IOException exception){
-            System.out.println(exception.getMessage());
-        }
-
+        MESSAGE_SENDER.send(session.getId(), "/", "Hello user");
     }
 
     @SocketDisconnectMapping
     public void disconnect(WebSocketSession session, CloseStatus status){
-        System.out.println(session.getId() + " - disconnected");
+        LOGGER.info(session.getId() + " - disconnected, with status - " + status);
     }
 
     @SocketMapping(reqPath = "/hello")
-    public Response<String> hello(Request<String> request){
-        return new Response<>("/", "Hello " + request.getRequestBody(), 400);
+    public void hello(Request<String> request){
+//        return new Response<>("/", "Hello " + request.getRequestBody());
     }
 
     @SocketMapping(reqPath = "/setYear")
-    public Response<String> setYear(Request<Integer> request){
-        return new Response<>("/", "Years - " + request.getRequestBody(), 400);
+    public void setYear(Request<Integer> request){
+//        return new Response<>("/", "Years - " + request.getRequestBody());
     }
 
     @SocketMapping(reqPath = "/getCar")
-    @SocketMappingFilter(filter = MappingFilter.class)
-    public Response<Car> getCar(Request<Car> request){
-        Car car = request.getRequestBody();
+    @SocketMappingFilters(filters = {MappingFilter.class})
+    public void getCar(Request<Car> request){
+        System.out.println("Method car - " + request.getRequestBody());
 
-        System.out.println("Method car - " + car);
-
-
-        System.out.println(request.getRequestBody().getClass());
-
-        return new Response<>("/", new Car(2003, "BMW"), 400);
+        MESSAGE_SENDER.send(request.getSessionID(), "/newCar", new Car(2003, "BMW"));
     }
 }
 

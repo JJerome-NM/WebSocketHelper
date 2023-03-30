@@ -1,7 +1,7 @@
 package com.jjerome.test.MainTests;
 
 import com.jjerome.dto.Request;
-import com.jjerome.models.SocketMethodFilter;
+import com.jjerome.filters.SocketMethodFilter;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 

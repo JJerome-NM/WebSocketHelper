@@ -1,12 +1,16 @@
-package com.jjerome.models;
+package com.jjerome.mappers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jjerome.JsonMapper;
 import com.jjerome.dto.Response;
+import com.jjerome.models.MessageSender;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ResponseMapper {
+    private static final Logger LOGGER = LoggerFactory.getLogger(MessageSender.class);
 
     public static  <RB> Response<RB> fromJSON(String json, Class<RB> reqBodyClass) {
 
@@ -18,15 +22,12 @@ public class ResponseMapper {
         if (validateJsonField(jsonObject, "requestBody", reqBodyClass)){
             if (jsonFieldIsNumberOrString(jsonObject, "requestBody")){
                 response.setResponseBody((RB) jsonObject.opt("requestBody"));
-                response.setResponseStatus(201);
                 return response;
             }
             response.setResponseBody(JsonMapper.map(reqBodyClass, jsonObject.getJSONObject("requestBody")));
-            response.setResponseStatus(201);
             return response;
         }
         response.setResponseBody(null);
-        response.setResponseStatus(400);
         return response;
     }
 
@@ -34,9 +35,9 @@ public class ResponseMapper {
         try {
             return new ObjectMapper().writeValueAsString(response);
         } catch (JsonProcessingException exception){
-            System.out.println(exception.getMessage());
+            LOGGER.error(exception.getMessage());
         }
-        return null;
+        return "";
     }
 
     private static boolean jsonFieldIsNumberOrString(JSONObject jsonObject, String field){

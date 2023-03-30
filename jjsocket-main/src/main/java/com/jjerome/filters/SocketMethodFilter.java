@@ -1,4 +1,4 @@
-package com.jjerome.models;
+package com.jjerome.filters;
 
 import com.jjerome.dto.Request;
 import org.springframework.web.socket.TextMessage;

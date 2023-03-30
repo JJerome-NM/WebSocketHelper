@@ -1,4 +1,4 @@
-package com.jjerome.models;
+package com.jjerome.filters;
 
 import org.jetbrains.annotations.NotNull;
 import org.springframework.web.socket.TextMessage;

@@ -1,13 +1,13 @@
 package com.jjerome.annotations;
 
-import com.jjerome.models.SocketMethodFilter;
+import com.jjerome.filters.SocketMethodFilter;
 
 import java.lang.annotation.*;
 
 @Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface SocketMappingFilter {
+public @interface SocketMappingFilters {
 
-    Class<? extends SocketMethodFilter> filter();
+    Class<? extends SocketMethodFilter>[] filters();
 }

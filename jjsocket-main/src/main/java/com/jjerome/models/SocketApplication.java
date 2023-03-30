@@ -1,9 +1,15 @@
 package com.jjerome.models;
 
+import com.jjerome.annotations.FilteringOrder;
 import com.jjerome.annotations.SocketComponentsScan;
 import com.jjerome.annotations.SocketController;
 import com.jjerome.context.SocketControllersContext;
 import com.jjerome.dto.Response;
+import com.jjerome.exceptions.ExceptionMessage;
+import com.jjerome.filters.FiltersComparator;
+import com.jjerome.filters.SocketConnectionFilter;
+import com.jjerome.filters.SocketMessageFilter;
+import com.jjerome.mappers.ResponseMapper;
 import org.jetbrains.annotations.NotNull;
 import org.reflections.Reflections;
 import org.slf4j.Logger;
@@ -19,7 +25,6 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 @Component
@@ -27,32 +32,40 @@ public class SocketApplication extends TextWebSocketHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SocketApplication.class);
 
-    private final ExecutorService executorService = Executors.newFixedThreadPool(
-            Runtime.getRuntime().availableProcessors());
+    private static final int THREAD_POOL = Runtime.getRuntime().availableProcessors();
+
+    private static MessageSender messageSender;
+
+
+    private final ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL);
 
     private final Map<String, WebSocketSession> allSession = new HashMap<>();
 
-    private final Map<String, BiFunction<WebSocketSession, TextMessage, Response<?>>> methodMappings = new HashMap<>();
+//    This thing has to be here, otherwise everything will break
+    {
+        messageSender = new MessageSender(this.allSession, this.executorService);
+    }
+
+    private final Map<String, BiConsumer<WebSocketSession, TextMessage>> methodMappings = new HashMap<>();
 
     private final List<Consumer<WebSocketSession>> connectionMappings = new ArrayList<>();
 
     private final List<BiConsumer<WebSocketSession, CloseStatus>> disconnectMappings = new ArrayList<>();
 
+    private final Set<SocketConnectionFilter> connectionFilters = new TreeSet<>(new FiltersComparator<>());
+
+    private final Set<SocketMessageFilter> messageFilters = new TreeSet<>(new FiltersComparator<>());
+
     private final SocketControllersContext controllersContext = new SocketControllersContext();
 
-    private final List<SocketConnectionFilter> connectionFilters = new ArrayList<>();
+    private final RequestAccepter requestAccepter  = new RequestAccepter(
+            this.methodMappings, this.messageFilters, this.executorService);
 
-    private final List<SocketMessageFilter> messageFilters = new ArrayList<>();
-
-    private final SocketRequestAccepter requestAccepter;
 
 //  ------------------------------------------- Constructors
 
     public SocketApplication(Class<?> runningClass){
         this.addSocketControllers(runningClass);
-
-        this.requestAccepter = new SocketRequestAccepter(this.methodMappings, this.messageFilters,
-                this.executorService);
 
         LOGGER.info("SocketApplication started");
     }
@@ -84,10 +97,9 @@ public class SocketApplication extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus status) {
+        this.allSession.remove(session.getId());
         this.executorService.submit(() -> this.disconnectMappings
                 .forEach(map -> map.accept(session, status)));
-
-        this.allSession.remove(session.getId());
     }
 
     @Override
@@ -99,6 +111,7 @@ public class SocketApplication extends TextWebSocketHandler {
 //  ------------------------------------------- This class methods
 
     private void addSocketControllers(Class<?> runningClass){
+
         Reflections reflections = new Reflections(runningClass.getPackageName());
         Set<Class<?>> classes = reflections.getTypesAnnotatedWith(SocketController.class);
         classes.forEach(this::addSocketController);
@@ -114,6 +127,9 @@ public class SocketApplication extends TextWebSocketHandler {
 
     private void addSocketMessageFilters(Class<? extends SocketMessageFilter> filterClass){
         try {
+            if (!filterClass.isAnnotationPresent(FilteringOrder.class)){
+                LOGGER.warn(filterClass.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTETING_ORDER.get());
+            }
             this.messageFilters.add(filterClass.getDeclaredConstructor().newInstance());
         } catch (ReflectiveOperationException exception){
             LOGGER.error(exception.getMessage());
@@ -122,6 +138,9 @@ public class SocketApplication extends TextWebSocketHandler {
 
     private void addSocketConnectionFilters(Class<? extends SocketConnectionFilter> filterClass){
         try {
+            if (!filterClass.isAnnotationPresent(FilteringOrder.class)){
+                LOGGER.warn(filterClass.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTETING_ORDER.get());
+            }
             this.connectionFilters.add(filterClass.getDeclaredConstructor().newInstance());
         } catch (ReflectiveOperationException exception){
             LOGGER.error(exception.getMessage());
@@ -138,5 +157,14 @@ public class SocketApplication extends TextWebSocketHandler {
         this.methodMappings.putAll(this.controllersContext.addRequestsMappings(controllerClass));
 
         LOGGER.info(controllerClass.getName() + " controller added successfully");
+    }
+
+    public static MessageSender getMessageSender() {
+        if (messageSender == null){
+            throw new RuntimeException("Message sender is null");
+        }
+
+        return messageSender;
+
     }
 }

@@ -1,16 +1,16 @@
 package com.jjerome.context;
 
-import com.jjerome.annotations.SocketConnectMapping;
-import com.jjerome.annotations.SocketDisconnectMapping;
-import com.jjerome.annotations.SocketMapping;
-import com.jjerome.annotations.SocketMappingFilter;
+import com.jjerome.annotations.*;
 import com.jjerome.dto.Request;
-import com.jjerome.dto.Response;
+import com.jjerome.exceptions.ExceptionMessage;
 import com.jjerome.exceptions.MappingParametersException;
 import com.jjerome.exceptions.RequestPathBusy;
-import com.jjerome.models.RequestMapper;
+import com.jjerome.filters.FiltersComparator;
+import com.jjerome.mappers.RequestMapper;
+import com.jjerome.models.MessageSender;
 import com.jjerome.models.ResponseErrors;
-import com.jjerome.models.SocketMethodFilter;
+import com.jjerome.filters.SocketMethodFilter;
+import com.jjerome.models.SocketApplication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -23,13 +23,13 @@ import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.util.*;
 import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 @Component
 public class SocketControllersContext {
     private static final Logger LOGGER = LoggerFactory.getLogger(SocketControllersContext.class);
 
+    private final MessageSender messageSender = SocketApplication.getMessageSender();
 
     public Class<?> getMethodRequestGeneric(Method method){
         if (!(method.getGenericParameterTypes()[0] instanceof ParameterizedType parameterizedType)) return null;
@@ -81,7 +81,7 @@ public class SocketControllersContext {
 
         for (Method method : controllerClass.getDeclaredMethods()){
             if (!method.isAnnotationPresent(SocketDisconnectMapping.class)) continue;
-            if (!this.validateMappingMethod(method, void.class, WebSocketSession.class, CloseStatus.class))  continue;
+            if (!this.validateMappingMethod(method, void.class, WebSocketSession.class, CloseStatus.class)) continue;
 
             try {
                 Object methodObject = controllerClass.getDeclaredConstructor().newInstance();
@@ -100,13 +100,13 @@ public class SocketControllersContext {
         return disconnectMappings;
     }
 
-    public Map<String, BiFunction<WebSocketSession, TextMessage, Response<?>>> addRequestsMappings(
+    public Map<String, BiConsumer<WebSocketSession, TextMessage>> addRequestsMappings(
             Class<?> controllerClass){
-        Map<String, BiFunction<WebSocketSession, TextMessage, Response<?>>> socketMappings = new HashMap<>();
+        Map<String, BiConsumer<WebSocketSession, TextMessage>> socketMappings = new HashMap<>();
 
         for (Method method : controllerClass.getDeclaredMethods()) {
             if (!method.isAnnotationPresent(SocketMapping.class)) continue;
-            if (!this.validateMappingMethod(method, Response.class, Request.class)) continue;
+            if (!this.validateMappingMethod(method, void.class, Request.class)) continue;
 
             SocketMapping socketMapping = method.getAnnotation(SocketMapping.class);
 
@@ -116,30 +116,43 @@ public class SocketControllersContext {
             }
 
             try {
+                Set<SocketMethodFilter> methodFilters = new TreeSet<>(new FiltersComparator<>());
+
+                if (method.isAnnotationPresent(SocketMappingFilters.class)){
+                    for (Class<? extends  SocketMethodFilter> filter :
+                            method.getDeclaredAnnotation(SocketMappingFilters.class).filters()){
+
+                        if (!filter.isAnnotationPresent(FilteringOrder.class)){
+                            LOGGER.warn(filter.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTETING_ORDER.get());
+                        }
+
+                        methodFilters.add(filter.getDeclaredConstructor().newInstance());
+                    }
+                }
+
                 Class<?> reqGeneric = this.getMethodRequestGeneric(method);
                 Object methodObject = controllerClass.getDeclaredConstructor().newInstance();
 
-                SocketMethodFilter methodFilter;
-                if (method.isAnnotationPresent(SocketMappingFilter.class)){
-                    methodFilter = method.getAnnotation(SocketMappingFilter.class).filter()
-                            .getDeclaredConstructor().newInstance();
-                } else methodFilter = (session, message, request) -> true;
-
                 socketMappings.put(socketMapping.reqPath(), (session ,message) -> {
                     Request<?> request = RequestMapper.fromJSON(message.getPayload(), reqGeneric);
+                    request.setSessionID(session.getId());
 
-                    if (!methodFilter.doFilter(session, message, request)) return ResponseErrors.FILTERING_FAIL.get();
-                    if (request.getRequestBody() == null) return ResponseErrors.REQUEST_BODY_NOT_REQ.get();
+                    for (SocketMethodFilter filter : methodFilters){
+                        if (!filter.doFilter(session, message, request)){
+                            messageSender.send(session.getId(), ResponseErrors.FILTERING_FAIL.get());
+                            return;
+                        }
+                    }
+
+                    if (request.getRequestBody() == null){
+                        messageSender.send(session.getId(), ResponseErrors.REQUEST_BODY_NOT_REQ.get());
+                        return;
+                    }
 
                     try {
-                        Response<?> response = (Response<?>) method.invoke(methodObject, request);
-                        if (!Objects.equals(socketMapping.resPath(), "")){
-                            response.setResponsePath(socketMapping.resPath());
-                        }
-                        return response;
+                        method.invoke(methodObject, request);
                     } catch (InvocationTargetException | IllegalAccessException exception){
-                        LOGGER.error(exception.getMessage());
-                        return ResponseErrors.MAPPING_ERROR.get();
+                        LOGGER.error("Method invoke exception", exception);
                     }
                 });
             } catch (ReflectiveOperationException exception){
