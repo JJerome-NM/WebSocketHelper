@@ -17,20 +17,13 @@ public class RequestAccepter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RequestAccepter.class);
 
-    private final MessageSender MESSAGE_SENDER;
+    private final MessageSender MESSAGE_SENDER = SocketApplication.getMessageSender();
 
     private final Map<String, BiConsumer<WebSocketSession ,TextMessage>> methodMappings;
 
     private final Set<SocketMessageFilter> messageFilters;
 
     private final ExecutorService executorService;
-
-    {
-        MESSAGE_SENDER = SocketApplication.getMessageSender();
-        if (MESSAGE_SENDER == null){
-            throw new RuntimeException("Message sender is null");
-        }
-    }
 
     public RequestAccepter(Map<String, BiConsumer<WebSocketSession ,TextMessage>> methodMappings,
                            Set<SocketMessageFilter> messageFilters,
@@ -56,7 +49,6 @@ public class RequestAccepter {
                 } else {
                     MESSAGE_SENDER.send(session.getId(), ResponseErrors.MAPPING_NOT_FOUND.get());
                 }
-
             } else {
                 MESSAGE_SENDER.send(session.getId(), ResponseErrors.REQUEST_PATH_NULL.get());
             }

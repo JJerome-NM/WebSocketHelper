@@ -36,7 +36,6 @@ public class SocketApplication extends TextWebSocketHandler {
 
     private static MessageSender messageSender;
 
-
     private final ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL);
 
     private final Map<String, WebSocketSession> allSession = new HashMap<>();
@@ -128,7 +127,7 @@ public class SocketApplication extends TextWebSocketHandler {
     private void addSocketMessageFilters(Class<? extends SocketMessageFilter> filterClass){
         try {
             if (!filterClass.isAnnotationPresent(FilteringOrder.class)){
-                LOGGER.warn(filterClass.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTETING_ORDER.get());
+                LOGGER.warn(filterClass.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTERING_ORDER.get());
             }
             this.messageFilters.add(filterClass.getDeclaredConstructor().newInstance());
         } catch (ReflectiveOperationException exception){
@@ -139,7 +138,7 @@ public class SocketApplication extends TextWebSocketHandler {
     private void addSocketConnectionFilters(Class<? extends SocketConnectionFilter> filterClass){
         try {
             if (!filterClass.isAnnotationPresent(FilteringOrder.class)){
-                LOGGER.warn(filterClass.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTETING_ORDER.get());
+                LOGGER.warn(filterClass.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTERING_ORDER.get());
             }
             this.connectionFilters.add(filterClass.getDeclaredConstructor().newInstance());
         } catch (ReflectiveOperationException exception){
@@ -160,11 +159,6 @@ public class SocketApplication extends TextWebSocketHandler {
     }
 
     public static MessageSender getMessageSender() {
-        if (messageSender == null){
-            throw new RuntimeException("Message sender is null");
-        }
-
         return messageSender;
-
     }
 }

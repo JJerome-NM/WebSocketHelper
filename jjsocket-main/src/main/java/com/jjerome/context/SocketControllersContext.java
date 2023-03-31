@@ -31,6 +31,7 @@ public class SocketControllersContext {
 
     private final MessageSender messageSender = SocketApplication.getMessageSender();
 
+
     public Class<?> getMethodRequestGeneric(Method method){
         if (!(method.getGenericParameterTypes()[0] instanceof ParameterizedType parameterizedType)) return null;
 
@@ -123,7 +124,7 @@ public class SocketControllersContext {
                             method.getDeclaredAnnotation(SocketMappingFilters.class).filters()){
 
                         if (!filter.isAnnotationPresent(FilteringOrder.class)){
-                            LOGGER.warn(filter.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTETING_ORDER.get());
+                            LOGGER.warn(filter.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTERING_ORDER.get());
                         }
 
                         methodFilters.add(filter.getDeclaredConstructor().newInstance());

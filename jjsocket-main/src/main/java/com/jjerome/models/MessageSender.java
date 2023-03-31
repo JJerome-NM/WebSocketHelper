@@ -31,7 +31,6 @@ public class MessageSender {
                 LOGGER.error("Send a message to an unidentified session");
                 return;
             }
-
             try{
                 this.allSession.get(sessionID).sendMessage(new TextMessage(ResponseMapper.toJSON(response)));
             } catch (IOException exception){

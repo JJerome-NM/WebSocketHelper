@@ -2,16 +2,12 @@ package com.jjerome.test.MainTests;
 
 import com.jjerome.annotations.*;
 import com.jjerome.dto.Request;
-import com.jjerome.dto.Response;
 import com.jjerome.models.MessageSender;
 import com.jjerome.models.SocketApplication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.socket.CloseStatus;
-import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
-
-import java.io.IOException;
 
 @SocketController
 public class TestController {
@@ -34,11 +30,15 @@ public class TestController {
 
     @SocketMapping(reqPath = "/hello")
     public void hello(Request<String> request){
-//        return new Response<>("/", "Hello " + request.getRequestBody());
+
+        MESSAGE_SENDER.send(request.getSessionID(), "/hello", "Hello client");
     }
 
     @SocketMapping(reqPath = "/setYear")
     public void setYear(Request<Integer> request){
+
+        MESSAGE_SENDER.send(request.getSessionID(), "/hello", "Hello client");
+
 //        return new Response<>("/", "Years - " + request.getRequestBody());
     }
 
