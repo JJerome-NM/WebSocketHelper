@@ -24,13 +24,12 @@ public class RequestMapper {
         if (validateJsonField(jsonObject, "requestBody", reqBodyClass)){
             if (jsonFieldIsNumberOrString(jsonObject, "requestBody")){
                 request.setRequestBody((RB) jsonObject.opt("requestBody"));
-
-                return request;
+            } else {
+                request.setRequestBody(JsonMapper.map(reqBodyClass, jsonObject.getJSONObject("requestBody")));
             }
-            request.setRequestBody(JsonMapper.map(reqBodyClass, jsonObject.getJSONObject("requestBody")));
-            return request;
+        } else {
+            request.setRequestBody(null);
         }
-        request.setRequestBody(null);
         return request;
     }
 
