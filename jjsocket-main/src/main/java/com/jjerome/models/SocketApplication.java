@@ -10,10 +10,11 @@ import com.jjerome.filters.FiltersComparator;
 import com.jjerome.filters.SocketConnectionFilter;
 import com.jjerome.filters.SocketMessageFilter;
 import com.jjerome.mappers.ResponseMapper;
-import org.jetbrains.annotations.NotNull;
+
 import org.reflections.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import lombok.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -21,7 +22,12 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
@@ -40,11 +46,6 @@ public class SocketApplication extends TextWebSocketHandler {
 
     private final Map<String, WebSocketSession> allSession = new HashMap<>();
 
-//    This thing has to be here, otherwise everything will break
-    {
-        messageSender = new MessageSender(this.allSession, this.executorService);
-    }
-
     private final Map<String, BiConsumer<WebSocketSession, TextMessage>> methodMappings = new HashMap<>();
 
     private final List<Consumer<WebSocketSession>> connectionMappings = new ArrayList<>();
@@ -61,19 +62,20 @@ public class SocketApplication extends TextWebSocketHandler {
             this.methodMappings, this.messageFilters, this.executorService);
 
 
-//  ------------------------------------------- Constructors
+
 
     public SocketApplication(Class<?> runningClass){
+        messageSender = new MessageSender(this.allSession, this.executorService);
+
         this.addSocketControllers(runningClass);
 
         LOGGER.info("SocketApplication started");
     }
 
 
-//  ------------------------------------------- WebSocket methods
 
     @Override
-    public void afterConnectionEstablished(@NotNull WebSocketSession session) {
+    public void afterConnectionEstablished(@NonNull WebSocketSession session) {
         executorService.submit(() -> {
             for (SocketConnectionFilter filter : this.connectionFilters){
                 if (!filter.doFilter(session)){
@@ -95,25 +97,25 @@ public class SocketApplication extends TextWebSocketHandler {
     }
 
     @Override
-    public void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus status) {
+    public void afterConnectionClosed(@NonNull WebSocketSession session, @NonNull CloseStatus status) {
         this.allSession.remove(session.getId());
         this.executorService.submit(() -> this.disconnectMappings
                 .forEach(map -> map.accept(session, status)));
     }
 
+
+
     @Override
-    protected void handleTextMessage(@NotNull WebSocketSession session, @NotNull TextMessage message) {
+    protected void handleTextMessage(@NonNull WebSocketSession session, @NonNull TextMessage message) {
         this.requestAccepter.acceptMessage(session, message);
     }
 
-
-//  ------------------------------------------- This class methods
-
     private void addSocketControllers(Class<?> runningClass){
-
         Reflections reflections = new Reflections(runningClass.getPackageName());
         Set<Class<?>> classes = reflections.getTypesAnnotatedWith(SocketController.class);
         classes.forEach(this::addSocketController);
+
+        if (!runningClass.isAnnotationPresent(SocketComponentsScan.class)) return;
 
         for(String pack : runningClass.getAnnotation(SocketComponentsScan.class).packages()){
             reflections = new Reflections(pack);

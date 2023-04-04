@@ -22,12 +22,12 @@ public class ResponseMapper {
         if (validateJsonField(jsonObject, "requestBody", reqBodyClass)){
             if (jsonFieldIsNumberOrString(jsonObject, "requestBody")){
                 response.setResponseBody((RB) jsonObject.opt("requestBody"));
-                return response;
+            } else {
+                response.setResponseBody(JsonMapper.map(reqBodyClass, jsonObject.getJSONObject("requestBody")));
             }
-            response.setResponseBody(JsonMapper.map(reqBodyClass, jsonObject.getJSONObject("requestBody")));
-            return response;
+        } else {
+            response.setResponseBody(null);
         }
-        response.setResponseBody(null);
         return response;
     }
 

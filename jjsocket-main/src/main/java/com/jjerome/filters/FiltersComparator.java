@@ -11,8 +11,10 @@ public class FiltersComparator<F> implements Comparator<F> {
         if (!f1.getClass().isAnnotationPresent(FilteringOrder.class)) return 1;
         if (!f2.getClass().isAnnotationPresent(FilteringOrder.class)) return -1;
 
-        int result = f1.getClass().getDeclaredAnnotation(FilteringOrder.class).order() -
-                f2.getClass().getDeclaredAnnotation(FilteringOrder.class).order();
+        int firstFilterOrder = f1.getClass().getDeclaredAnnotation(FilteringOrder.class).order();
+        int secondFilterOrder = f2.getClass().getDeclaredAnnotation(FilteringOrder.class).order();
+
+        int result = firstFilterOrder - secondFilterOrder;
 
         return result != 0 ? result : f1 == f2 ? 0 : -1;
     }
