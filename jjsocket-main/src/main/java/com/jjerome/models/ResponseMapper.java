@@ -19,14 +19,15 @@ public class ResponseMapper {
             if (jsonFieldIsNumberOrString(jsonObject, "requestBody")){
                 response.setResponseBody((RB) jsonObject.opt("requestBody"));
                 response.setResponseStatus(201);
-                return response;
+            } else {
+                response.setResponseBody(JsonMapper.map(reqBodyClass, jsonObject.getJSONObject("requestBody")));
+                response.setResponseStatus(201);
             }
-            response.setResponseBody(JsonMapper.map(reqBodyClass, jsonObject.getJSONObject("requestBody")));
-            response.setResponseStatus(201);
-            return response;
+        } else {
+            response.setResponseBody(null);
+            response.setResponseStatus(400);
         }
-        response.setResponseBody(null);
-        response.setResponseStatus(400);
+
         return response;
     }
 
