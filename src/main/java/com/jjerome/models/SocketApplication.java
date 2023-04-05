@@ -90,9 +90,8 @@ public class SocketApplication extends TextWebSocketHandler {
                     return;
                 }
             }
-            this.connectionMappings.forEach(mapping -> mapping.accept(session));
-
             this.allSession.put(session.getId(), session);
+            this.connectionMappings.forEach(mapping -> mapping.accept(session));
         });
     }
 

@@ -37,6 +37,9 @@ public class SocketControllersContext {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SocketControllersContext.class);
 
+    private final List<Method> addedConnectMethods = new ArrayList<>();
+    private final List<Method> addedDisconnectMethods = new ArrayList<>();
+
     private final ApplicationContext context;
 
     private final MessageSender messageSender;
@@ -75,6 +78,9 @@ public class SocketControllersContext {
             if (!this.validateMappingMethod(method, SocketConnectMapping.class, void.class, WebSocketSession.class)) {
                 continue;
             }
+            if (this.addedConnectMethods.contains(method)){
+                continue;
+            }
 
             Object methodObject = context.getBean(controllerClass);
             connectionMappings.add(webSocketSession -> {
@@ -84,6 +90,7 @@ public class SocketControllersContext {
                     LOGGER.error(exception.getMessage());
                 }
             });
+            this.addedConnectMethods.add(method);
         }
         return connectionMappings;
     }
@@ -96,9 +103,11 @@ public class SocketControllersContext {
                     CloseStatus.class)) {
                 continue;
             }
+            if (this.addedDisconnectMethods.contains(method)){
+                continue;
+            }
 
             Object methodObject = context.getBean(controllerClass);
-
             disconnectMappings.add((webSocketSession, closeStatus) -> {
                 try {
                     method.invoke(methodObject, webSocketSession, closeStatus);
@@ -106,6 +115,7 @@ public class SocketControllersContext {
                     LOGGER.error(exception.getMessage());
                 }
             });
+            this.addedDisconnectMethods.add(method);
         }
         return disconnectMappings;
     }
