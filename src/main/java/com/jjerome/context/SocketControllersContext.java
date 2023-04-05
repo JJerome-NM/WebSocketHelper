@@ -1,20 +1,15 @@
 package com.jjerome.context;
 
-import com.jjerome.annotations.SocketDisconnectMapping;
 import com.jjerome.annotations.SocketConnectMapping;
-import com.jjerome.annotations.SocketMappingFilters;
-import com.jjerome.annotations.FilteringOrder;
+import com.jjerome.annotations.SocketDisconnectMapping;
 import com.jjerome.annotations.SocketMapping;
 import com.jjerome.dto.Request;
-import com.jjerome.exceptions.ExceptionMessage;
 import com.jjerome.exceptions.MappingParametersException;
 import com.jjerome.exceptions.RequestPathBusy;
-import com.jjerome.filters.FiltersComparator;
+import com.jjerome.filters.SocketMethodFilter;
 import com.jjerome.mappers.RequestMapper;
 import com.jjerome.models.MessageSender;
 import com.jjerome.models.ResponseErrors;
-import com.jjerome.filters.SocketMethodFilter;
-
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,14 +19,14 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
-import java.util.TreeSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -43,8 +38,10 @@ public class SocketControllersContext {
     private static final Logger LOGGER = LoggerFactory.getLogger(SocketControllersContext.class);
 
     private final ApplicationContext context;
+
     private final MessageSender messageSender;
 
+    private final SocketFiltersContext filtersContext;
 
     public Class<?> getMethodRequestGeneric(Method method){
         if (!(method.getGenericParameterTypes()[0] instanceof ParameterizedType parameterizedType)) return null;
@@ -52,13 +49,16 @@ public class SocketControllersContext {
         return (Class<?>) parameterizedType.getActualTypeArguments()[0];
     }
 
-    public boolean validateMappingMethod(Method method, Class<?> returnClass, Class<?>... parameterClasses){
-        if (method.getParameterCount() != parameterClasses.length) {
+    public boolean validateMappingMethod(Method method, Class<? extends Annotation> methodAnnotation,
+                                         Class<?> returnClass, Class<?>... parameterClasses){
+        if (!method.isAnnotationPresent(methodAnnotation)) {
+            return false;
+        } else if (method.getParameterCount() != parameterClasses.length) {
             throw new MappingParametersException("The number of parameters is not " + parameterClasses.length);
-        }
-        if (method.getReturnType() != returnClass) {
+        } else if (method.getReturnType() != returnClass) {
             throw new MappingParametersException("Return type is not " + returnClass.getName());
         }
+
         Class<?>[] methodParameters = method.getParameterTypes();
         for (int i = 0; i < parameterClasses.length; i++){
             if (methodParameters[i] != parameterClasses[i]) {
@@ -68,19 +68,16 @@ public class SocketControllersContext {
         return true;
     }
 
-    public List<Consumer<WebSocketSession>> addConnectionMappings(Class<?> controllerClass) {
+    public List<Consumer<WebSocketSession>> findConnectionMappings(Class<?> controllerClass) {
         List<Consumer<WebSocketSession>> connectionMappings = new ArrayList<>();
 
         for (Method method : controllerClass.getDeclaredMethods()){
-            if (!method.isAnnotationPresent(SocketConnectMapping.class)) {
-                continue;
-            }
-            if (!this.validateMappingMethod(method, void.class, WebSocketSession.class)) {
+            if (!this.validateMappingMethod(method, SocketConnectMapping.class, void.class, WebSocketSession.class)) {
                 continue;
             }
 
             Object methodObject = context.getBean(controllerClass);
-            connectionMappings.add((webSocketSession) -> {
+            connectionMappings.add(webSocketSession -> {
                 try {
                     method.invoke(methodObject, webSocketSession);
                 } catch (InvocationTargetException | IllegalAccessException exception){
@@ -91,14 +88,12 @@ public class SocketControllersContext {
         return connectionMappings;
     }
 
-    public List<BiConsumer<WebSocketSession, CloseStatus>> addDisconnectMappings(Class<?> controllerClass){
+    public List<BiConsumer<WebSocketSession, CloseStatus>> findDisconnectMappings(Class<?> controllerClass){
         List<BiConsumer<WebSocketSession, CloseStatus>> disconnectMappings = new ArrayList<>();
 
         for (Method method : controllerClass.getDeclaredMethods()){
-            if (!method.isAnnotationPresent(SocketDisconnectMapping.class)) {
-                continue;
-            }
-            if (!this.validateMappingMethod(method, void.class, WebSocketSession.class, CloseStatus.class)) {
+            if (!this.validateMappingMethod(method, SocketDisconnectMapping.class, void.class, WebSocketSession.class,
+                    CloseStatus.class)) {
                 continue;
             }
 
@@ -115,65 +110,56 @@ public class SocketControllersContext {
         return disconnectMappings;
     }
 
-    public Map<String, BiConsumer<WebSocketSession, TextMessage>> addRequestsMappings(Class<?> controllerClass){
+    public Map<String, BiConsumer<WebSocketSession, TextMessage>> findRequestMappings(Class<?> controllerClass){
         Map<String, BiConsumer<WebSocketSession, TextMessage>> socketMappings = new HashMap<>();
+        String mappingPath;
 
-        for (Method method : controllerClass.getDeclaredMethods()) {
-            if (!method.isAnnotationPresent(SocketMapping.class)) {
+        for (Method method : controllerClass.getDeclaredMethods()){
+            if (!this.validateMappingMethod(method, SocketMapping.class, void.class, Request.class)) {
                 continue;
             }
-            if (!this.validateMappingMethod(method, void.class, Request.class)) {
-                continue;
+
+            mappingPath = method.getAnnotation(SocketMapping.class).reqPath();
+
+            if (socketMappings.containsKey(mappingPath)){
+                throw new RequestPathBusy(
+                        controllerClass.getName() + "; Method - " + method.getName() + " path is already in use");
             }
 
-            SocketMapping socketMapping = method.getAnnotation(SocketMapping.class);
+            Set<SocketMethodFilter> methodFilters = filtersContext.findAllMethodFilters(method);
+            Class<?> reqGeneric = this.getMethodRequestGeneric(method);
+            Object methodObject = context.getBean(controllerClass);
 
-            if (socketMappings.containsKey(socketMapping.reqPath())) {
-                throw new RequestPathBusy(controllerClass.getName() +
-                        "; Method - " + method.getName() + " path is already in use");
-            }
-
-                Set<SocketMethodFilter> methodFilters = new TreeSet<>(new FiltersComparator<>());
-
-                if (method.isAnnotationPresent(SocketMappingFilters.class)){
-                    for (Class<? extends SocketMethodFilter> filter :
-                            method.getDeclaredAnnotation(SocketMappingFilters.class).filters()){
-
-                        if (!filter.isAnnotationPresent(FilteringOrder.class)){
-                            LOGGER.warn(filter.getName() + " "
-                                    + ExceptionMessage.CLASS_DONT_HAVE_FILTERING_ORDER.getMessage());
-                        }
-
-                        methodFilters.add(context.getBean(filter));
-                    }
-                }
-
-                Class<?> reqGeneric = this.getMethodRequestGeneric(method);
-                Object methodObject = context.getBean(controllerClass);
-
-                socketMappings.put(socketMapping.reqPath(), (session ,message) -> {
-                    Request<?> request = RequestMapper.fromJSON(message.getPayload(), reqGeneric);
-                    request.setSessionID(session.getId());
-
-                    for (SocketMethodFilter filter : methodFilters){
-                        if (!filter.doFilter(session, message, request)){
-                            messageSender.send(session.getId(), ResponseErrors.FILTERING_FAIL.getResponse());
-                            return;
-                        }
-                    }
-
-                    if (request.getRequestBody() == null){
-                        messageSender.send(session.getId(), ResponseErrors.REQUEST_BODY_NOT_REQ.getResponse());
-                        return;
-                    }
-
-                    try {
-                        method.invoke(methodObject, request);
-                    } catch (InvocationTargetException | IllegalAccessException exception){
-                        LOGGER.error("Method invoke exception", exception);
-                    }
-                });
+            socketMappings.put(mappingPath, this.buildMappingInvoker(method, methodFilters, reqGeneric, methodObject));
         }
         return socketMappings;
+    }
+
+    private BiConsumer<WebSocketSession, TextMessage> buildMappingInvoker(Method method,
+                                                                          Set<SocketMethodFilter> methodFilters,
+                                                                          Class<?> reqGeneric,
+                                                                          Object methodObject){
+        return (session, message) -> {
+            Request<?> request = RequestMapper.fromJSON(message.getPayload(), reqGeneric);
+            request.setSessionID(session.getId());
+
+            for (SocketMethodFilter filter : methodFilters){
+                if (!filter.doFilter(session, message, request)){
+                    messageSender.send(session.getId(), ResponseErrors.FILTERING_FAIL.getResponse());
+                    return;
+                }
+            }
+
+            if (request.getRequestBody() == null){
+                messageSender.send(session.getId(), ResponseErrors.REQUEST_BODY_NOT_REQ.getResponse());
+                return;
+            }
+
+            try {
+                method.invoke(methodObject, request);
+            } catch (InvocationTargetException | IllegalAccessException exception){
+                LOGGER.error("Method invoke exception", exception);
+            }
+        };
     }
 }

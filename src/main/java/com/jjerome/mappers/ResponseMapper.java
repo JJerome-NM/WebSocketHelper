@@ -48,9 +48,9 @@ public class ResponseMapper {
     private static boolean validateJsonField(JSONObject jsonObject, String field, Class<?> fieldClass){
         if (jsonObject.has(field)){
             Class<?> optFieldClass = jsonObject.opt(field).getClass();
-            return optFieldClass == JSONObject.class || optFieldClass == fieldClass
-                    || optFieldClass.getSuperclass() == Number.class
-                    && fieldClass.getSuperclass() == Number.class;
+            return optFieldClass == JSONObject.class
+                    || optFieldClass == fieldClass
+                    || optFieldClass.getSuperclass() == Number.class && fieldClass.getSuperclass() == Number.class;
         }
         return false;
     }

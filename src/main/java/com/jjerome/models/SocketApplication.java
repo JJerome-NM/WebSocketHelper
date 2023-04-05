@@ -1,11 +1,9 @@
 package com.jjerome.models;
 
-import com.jjerome.annotations.FilteringOrder;
 import com.jjerome.annotations.SocketComponentsScan;
 import com.jjerome.annotations.SocketController;
 import com.jjerome.context.SocketControllersContext;
 import com.jjerome.dto.Response;
-import com.jjerome.exceptions.ExceptionMessage;
 import com.jjerome.filters.FiltersComparator;
 import com.jjerome.filters.SocketConnectionFilter;
 import com.jjerome.filters.SocketMessageFilter;
@@ -33,7 +31,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-//@Component
 public class SocketApplication extends TextWebSocketHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SocketApplication.class);
@@ -52,25 +49,28 @@ public class SocketApplication extends TextWebSocketHandler {
 
     private final Set<SocketMessageFilter> messageFilters = new TreeSet<>(new FiltersComparator<>());
 
-    private final SocketControllersContext controllersContext;
+    private final SocketControllersContext controllersNewContext;
 
     private final ApplicationContext applicationContext;
 
     private final RequestAccepter requestAccepter;
 
+    private final MessageSender messageSender;
+
     private final BeanUtil beanUtil;
 
-    public SocketApplication(SocketControllersContext socketControllersContext,
+    public SocketApplication(SocketControllersContext controllersNewContext,
                                 ApplicationContext applicationContext,
                                 BeanUtil beanUtil, ExecutorService executorService,
                                 Map<String, WebSocketSession> allSessions,
                                 MessageSender messageSender){
 
-        this.controllersContext = socketControllersContext;
+        this.controllersNewContext = controllersNewContext;
         this.applicationContext = applicationContext;
         this.beanUtil = beanUtil;
         this.executorService = executorService;
         this.allSession = allSessions;
+        this.messageSender = messageSender;
         this.requestAccepter = new RequestAccepter(messageSender, this.methodMappings, this.messageFilters,
                 executorService);
     }
@@ -86,15 +86,8 @@ public class SocketApplication extends TextWebSocketHandler {
         executorService.submit(() -> {
             for (SocketConnectionFilter filter : this.connectionFilters){
                 if (!filter.doFilter(session)){
-                    try {
-                        Response<?> response = ResponseErrors.FILTERING_FAIL.getResponse();
-                        session.sendMessage(new TextMessage(ResponseMapper.toJSON(response)));
-                        session.close();
-                        return;
-                    } catch (IOException exception){
-                        LOGGER.error(exception.getMessage());
-                        return;
-                    }
+                    this.closeSession(session, ResponseErrors.FILTERING_FAIL.getResponse());
+                    return;
                 }
             }
             this.connectionMappings.forEach(mapping -> mapping.accept(session));
@@ -106,13 +99,21 @@ public class SocketApplication extends TextWebSocketHandler {
     @Override
     public void afterConnectionClosed(@NonNull WebSocketSession session, @NonNull CloseStatus status) {
         this.allSession.remove(session.getId());
-        this.executorService.submit(() -> this.disconnectMappings
-                .forEach(map -> map.accept(session, status)));
+        this.executorService.submit(() -> this.disconnectMappings.forEach(map -> map.accept(session, status)));
     }
 
     @Override
     protected void handleTextMessage(@NonNull WebSocketSession session, @NonNull TextMessage message) {
         this.requestAccepter.acceptMessage(session, message);
+    }
+
+    private void closeSession(WebSocketSession session, Response<?> closeResponse){
+        try {
+            session.sendMessage(new TextMessage(ResponseMapper.toJSON(closeResponse)));
+            session.close();
+        } catch (IOException exception){
+            LOGGER.error(exception.getMessage());
+        }
     }
 
     private void addSocketControllers(Class<?> runningClass){
@@ -134,25 +135,11 @@ public class SocketApplication extends TextWebSocketHandler {
     }
 
     private void addSocketMessageFilters(Class<? extends SocketMessageFilter> filterClass){
-        try {
-            if (!filterClass.isAnnotationPresent(FilteringOrder.class)){
-                LOGGER.warn(filterClass.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTERING_ORDER.getMessage());
-            }
-            this.messageFilters.add(filterClass.getDeclaredConstructor().newInstance());
-        } catch (ReflectiveOperationException exception){
-            LOGGER.error(exception.getMessage());
-        }
+        this.messageFilters.add(this.applicationContext.getBean(filterClass));
     }
 
     private void addSocketConnectionFilters(Class<? extends SocketConnectionFilter> filterClass){
-        try {
-            if (!filterClass.isAnnotationPresent(FilteringOrder.class)){
-                LOGGER.warn(filterClass.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTERING_ORDER.getMessage());
-            }
-            this.connectionFilters.add(filterClass.getDeclaredConstructor().newInstance());
-        } catch (ReflectiveOperationException exception){
-            LOGGER.error(exception.getMessage());
-        }
+        this.connectionFilters.add(this.applicationContext.getBean(filterClass));
     }
 
     private void addSocketController(Class<?> controllerClass){
@@ -160,9 +147,9 @@ public class SocketApplication extends TextWebSocketHandler {
             throw new RuntimeException(controllerClass + " this class is not a Socket Controller");
         }
 
-        this.connectionMappings.addAll(this.controllersContext.addConnectionMappings(controllerClass));
-        this.disconnectMappings.addAll(this.controllersContext.addDisconnectMappings(controllerClass));
-        this.methodMappings.putAll(this.controllersContext.addRequestsMappings(controllerClass));
+        this.connectionMappings.addAll(this.controllersNewContext.findConnectionMappings(controllerClass));
+        this.disconnectMappings.addAll(this.controllersNewContext.findDisconnectMappings(controllerClass));
+        this.methodMappings.putAll(this.controllersNewContext.findRequestMappings(controllerClass));
 
         LOGGER.info(controllerClass.getName() + " controller added successfully");
     }

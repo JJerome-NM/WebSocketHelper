@@ -5,13 +5,10 @@ import com.jjerome.models.BeanUtil;
 import com.jjerome.models.MessageSender;
 import com.jjerome.models.SocketApplication;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.SpringApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Scope;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 
@@ -40,12 +37,12 @@ public class SocketConfiguration{
 
     @Bean
     public SocketApplication getSocketApplication(
-            @Autowired SocketControllersContext socketControllersContext,
+            @Autowired SocketControllersContext socketControllersNewContext,
             @Autowired BeanUtil beanUtil,
             @Autowired MessageSender messageSender){
 
-        return new SocketApplication(socketControllersContext, applicationContext, beanUtil, EXECUTOR_SERVICE,
-                ALL_SESSIONS, messageSender);
+        return new SocketApplication(socketControllersNewContext, applicationContext,
+                beanUtil, EXECUTOR_SERVICE, ALL_SESSIONS, messageSender);
     }
 
     @Bean

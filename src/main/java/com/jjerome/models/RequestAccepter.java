@@ -28,6 +28,7 @@ public class RequestAccepter {
             for (SocketMessageFilter filter : this.messageFilters){
                 if (!filter.doFilter(session, message)){
                     messageSender.send(session.getId(), ResponseErrors.FILTERING_FAIL.getResponse());
+                    return;
                 }
             }
 
