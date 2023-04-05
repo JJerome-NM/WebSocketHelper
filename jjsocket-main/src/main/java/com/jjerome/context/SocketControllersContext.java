@@ -16,6 +16,7 @@ import com.jjerome.models.MessageSender;
 import com.jjerome.models.ResponseErrors;
 import com.jjerome.filters.SocketMethodFilter;
 import com.jjerome.models.SocketApplication;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -134,7 +135,8 @@ public class SocketControllersContext {
                             method.getDeclaredAnnotation(SocketMappingFilters.class).filters()){
 
                         if (!filter.isAnnotationPresent(FilteringOrder.class)){
-                            LOGGER.warn(filter.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTERING_ORDER.get());
+                            LOGGER.warn(filter.getName() + " "
+                                    + ExceptionMessage.CLASS_DONT_HAVE_FILTERING_ORDER.getMessage());
                         }
 
                         methodFilters.add(filter.getDeclaredConstructor().newInstance());
@@ -150,13 +152,13 @@ public class SocketControllersContext {
 
                     for (SocketMethodFilter filter : methodFilters){
                         if (!filter.doFilter(session, message, request)){
-                            messageSender.send(session.getId(), ResponseErrors.FILTERING_FAIL.get());
+                            messageSender.send(session.getId(), ResponseErrors.FILTERING_FAIL.getResponse());
                             return;
                         }
                     }
 
                     if (request.getRequestBody() == null){
-                        messageSender.send(session.getId(), ResponseErrors.REQUEST_BODY_NOT_REQ.get());
+                        messageSender.send(session.getId(), ResponseErrors.REQUEST_BODY_NOT_REQ.getResponse());
                         return;
                     }
 

@@ -1,7 +1,10 @@
 package com.jjerome.models;
 
 import com.jjerome.dto.Response;
+import lombok.Getter;
 
+
+@Getter
 public enum ResponseErrors {
     FILTERING_FAIL("/error/filter", "Filtering failed"),
     MAPPING_NOT_FOUND("/error/mapping", "Mapping not found"),
@@ -17,7 +20,4 @@ public enum ResponseErrors {
         this.response = new Response<>(path, message);
     }
 
-    public Response<String> get(){
-        return this.response;
-    }
 }

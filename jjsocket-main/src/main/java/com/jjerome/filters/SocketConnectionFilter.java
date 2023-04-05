@@ -1,9 +1,9 @@
 package com.jjerome.filters;
 
-import lombok.NonNull;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.web.socket.WebSocketSession;
 
 public interface SocketConnectionFilter {
 
-    boolean doFilter(@NonNull WebSocketSession session);
+    boolean doFilter(@NotNull WebSocketSession session);
 }

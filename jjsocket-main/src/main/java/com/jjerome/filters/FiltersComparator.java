@@ -1,13 +1,13 @@
 package com.jjerome.filters;
 
 import com.jjerome.annotations.FilteringOrder;
-import lombok.NonNull;
+import jakarta.validation.constraints.NotNull;
 
 import java.util.Comparator;
 
 public class FiltersComparator<F> implements Comparator<F> {
     @Override
-    public int compare(@NonNull F f1, @NonNull F f2) {
+    public int compare(@NotNull F f1, @NotNull F f2) {
         if (!f1.getClass().isAnnotationPresent(FilteringOrder.class)) return 1;
         if (!f2.getClass().isAnnotationPresent(FilteringOrder.class)) return -1;
 

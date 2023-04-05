@@ -33,7 +33,6 @@ import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-@Component
 public class SocketApplication extends TextWebSocketHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SocketApplication.class);
@@ -80,7 +79,7 @@ public class SocketApplication extends TextWebSocketHandler {
             for (SocketConnectionFilter filter : this.connectionFilters){
                 if (!filter.doFilter(session)){
                     try {
-                        Response<?> response = ResponseErrors.FILTERING_FAIL.get();
+                        Response<?> response = ResponseErrors.FILTERING_FAIL.getResponse();
                         session.sendMessage(new TextMessage(ResponseMapper.toJSON(response)));
                         session.close();
                         return;
@@ -129,7 +128,7 @@ public class SocketApplication extends TextWebSocketHandler {
     private void addSocketMessageFilters(Class<? extends SocketMessageFilter> filterClass){
         try {
             if (!filterClass.isAnnotationPresent(FilteringOrder.class)){
-                LOGGER.warn(filterClass.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTERING_ORDER.get());
+                LOGGER.warn(filterClass.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTERING_ORDER.getMessage());
             }
             this.messageFilters.add(filterClass.getDeclaredConstructor().newInstance());
         } catch (ReflectiveOperationException exception){
@@ -140,7 +139,7 @@ public class SocketApplication extends TextWebSocketHandler {
     private void addSocketConnectionFilters(Class<? extends SocketConnectionFilter> filterClass){
         try {
             if (!filterClass.isAnnotationPresent(FilteringOrder.class)){
-                LOGGER.warn(filterClass.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTERING_ORDER.get());
+                LOGGER.warn(filterClass.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTERING_ORDER.getMessage());
             }
             this.connectionFilters.add(filterClass.getDeclaredConstructor().newInstance());
         } catch (ReflectiveOperationException exception){

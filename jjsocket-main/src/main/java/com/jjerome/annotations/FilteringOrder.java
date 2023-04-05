@@ -14,5 +14,5 @@ public @interface FilteringOrder {
 
     int order();
 
-    int defaultOrder = 1000;
+    int defaultOrder = Integer.MAX_VALUE;
 }
