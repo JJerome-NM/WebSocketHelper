@@ -3,11 +3,14 @@ package com.jjerome.context;
 import com.jjerome.annotations.SocketConnectMapping;
 import com.jjerome.annotations.SocketDisconnectMapping;
 import com.jjerome.annotations.SocketMapping;
-import com.jjerome.exceptions.MappingParametersException;
-import com.jjerome.exceptions.RequestPathBusy;
+import com.jjerome.annotations.SocketMappingFilter;
 import com.jjerome.dto.Request;
 import com.jjerome.dto.Response;
-import org.springframework.http.HttpStatus;
+import com.jjerome.exceptions.MappingParametersException;
+import com.jjerome.exceptions.RequestPathBusy;
+import com.jjerome.models.RequestMapper;
+import com.jjerome.models.ResponseErrors;
+import com.jjerome.models.SocketMethodFilter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -16,13 +19,17 @@ import org.springframework.web.socket.WebSocketSession;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.List;
+import java.util.Objects;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 @Component
-public class SocketContext {
+public class SocketControllersContext {
 
     public Class<?> getMethodRequestGeneric(Method method){
         if (!(method.getGenericParameterTypes()[0] instanceof ParameterizedType parameterizedType)) return null;
@@ -97,8 +104,9 @@ public class SocketContext {
         return disconnectMappings;
     }
 
-    public Map<String, Function<TextMessage, Response<?>>> addRequestsMappings(Class<?> controllerClass){
-        Map<String, Function<TextMessage, Response<?>>> socketMappings = new HashMap<>();
+    public Map<String, BiFunction<WebSocketSession, TextMessage, Response<?>>> addRequestsMappings(
+            Class<?> controllerClass){
+        Map<String, BiFunction<WebSocketSession, TextMessage, Response<?>>> socketMappings = new HashMap<>();
 
         for (Method method : controllerClass.getDeclaredMethods()) {
             if (!method.isAnnotationPresent(SocketMapping.class)) continue;
@@ -115,27 +123,28 @@ public class SocketContext {
                 Class<?> reqGeneric = this.getMethodRequestGeneric(method);
                 Object methodObject = controllerClass.getDeclaredConstructor().newInstance();
 
-                socketMappings.put(socketMapping.reqPath(), (message) -> {
+                SocketMethodFilter methodFilter;
+                if (method.isAnnotationPresent(SocketMappingFilter.class)){
+                    methodFilter = method.getAnnotation(SocketMappingFilter.class).filter()
+                            .getDeclaredConstructor().newInstance();
+                } else methodFilter = (session, message, request) -> true;
+
+                socketMappings.put(socketMapping.reqPath(), (session ,message) -> {
+                    Request<?> request = RequestMapper.fromJSON(message.getPayload(), reqGeneric);
+
+                    if (!methodFilter.doFilter(session, message, request)) return ResponseErrors.FILTERING_FAIL.get();
+                    if (request.getRequestBody() == null) return ResponseErrors.REQUEST_BODY_NOT_REQ.get();
+
                     try {
-                        Request<?> request = new Request<>(message.getPayload(), reqGeneric);
-
-                        if (request.getRequestBody() != null){
-                            Response<?> response = (Response<?>) method.invoke(methodObject, request);
-
-                            if (!Objects.equals(socketMapping.resPath(), "")){
-                                response.setResPath(socketMapping.resPath());
-                            }
-                            return response;
+                        Response<?> response = (Response<?>) method.invoke(methodObject, request);
+                        if (!Objects.equals(socketMapping.resPath(), "")){
+                            response.setResponsePath(socketMapping.resPath());
                         }
-
-                        return new Response<>("/error/json/request-body",
-                                 "Request body does not match the requirements", HttpStatus.BAD_REQUEST);
-
+                        return response;
                     } catch (InvocationTargetException | IllegalAccessException exception){
-                        System.out.println(exception.getMessage() + " " + exception.getCause());
+                        System.out.println(exception.getMessage());
 
-                        return new Response<>("/error/socket/mapping", "Socket mapping error",
-                                HttpStatus.BAD_REQUEST);
+                        return ResponseErrors.MAPPING_ERROR.get();
                     }
                 });
 

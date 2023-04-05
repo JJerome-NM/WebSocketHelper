@@ -12,7 +12,6 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(new SocketApplication("com.jjerome"), "/socket")
-                .setAllowedOrigins("*");
+        registry.addHandler(new SocketApplication(MainController.class), "/socket");
     }
 }
