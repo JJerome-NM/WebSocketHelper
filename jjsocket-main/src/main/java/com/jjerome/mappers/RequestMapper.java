@@ -1,43 +1,36 @@
-package com.jjerome.models;
+package com.jjerome.mappers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jjerome.JsonMapper;
-import com.jjerome.dto.Response;
+import com.jjerome.dto.Request;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
 
-public class ResponseMapper {
+public class RequestMapper {
 
-    public static  <RB> Response<RB> fromJSON(String json, Class<RB> reqBodyClass) {
 
-        Response<RB> response = new Response<>();
+    public static String toJSON(@NotNull Request<?> request) throws JsonProcessingException {
+        return new ObjectMapper().writeValueAsString(request);
+    }
+
+    public static  <RB> Request<RB> fromJSON(String json, Class<RB> reqBodyClass) {
+
+        Request<RB> request = new Request<>();
 
         JSONObject jsonObject = new JSONObject(json);
-        response.setResponsePath(jsonObject.getString("requestPath"));
+        request.setRequestPath(jsonObject.getString("requestPath"));
 
         if (validateJsonField(jsonObject, "requestBody", reqBodyClass)){
             if (jsonFieldIsNumberOrString(jsonObject, "requestBody")){
-                response.setResponseBody((RB) jsonObject.opt("requestBody"));
-                response.setResponseStatus(201);
+                request.setRequestBody((RB) jsonObject.opt("requestBody"));
             } else {
-                response.setResponseBody(JsonMapper.map(reqBodyClass, jsonObject.getJSONObject("requestBody")));
-                response.setResponseStatus(201);
+                request.setRequestBody(JsonMapper.map(reqBodyClass, jsonObject.getJSONObject("requestBody")));
             }
         } else {
-            response.setResponseBody(null);
-            response.setResponseStatus(400);
+            request.setRequestBody(null);
         }
-
-        return response;
-    }
-
-    public static <RB> String toJSON(Response<RB> response){
-        try {
-            return new ObjectMapper().writeValueAsString(response);
-        } catch (JsonProcessingException exception){
-            System.out.println(exception.getMessage());
-        }
-        return null;
+        return request;
     }
 
     private static boolean jsonFieldIsNumberOrString(JSONObject jsonObject, String field){

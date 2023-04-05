@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class Request<RB> {
 
+    private String sessionID;
+
     private String requestPath;
 
     private RB requestBody;

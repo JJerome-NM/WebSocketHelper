@@ -1,37 +1,43 @@
-package com.jjerome.models;
+package com.jjerome.mappers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jjerome.JsonMapper;
-import com.jjerome.dto.Request;
-import org.jetbrains.annotations.NotNull;
+import com.jjerome.dto.Response;
+import com.jjerome.models.MessageSender;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class RequestMapper {
+public class ResponseMapper {
+    private static final Logger LOGGER = LoggerFactory.getLogger(MessageSender.class);
 
+    public static  <RB> Response<RB> fromJSON(String json, Class<RB> reqBodyClass) {
 
-    public static String toJSON(@NotNull Request<?> request) throws JsonProcessingException {
-        return new ObjectMapper().writeValueAsString(request);
-    }
-
-    public static  <RB> Request<RB> fromJSON(String json, Class<RB> reqBodyClass) {
-
-        Request<RB> request = new Request<>();
+        Response<RB> response = new Response<>();
 
         JSONObject jsonObject = new JSONObject(json);
-        request.setRequestPath(jsonObject.getString("requestPath"));
+        response.setResponsePath(jsonObject.getString("requestPath"));
 
         if (validateJsonField(jsonObject, "requestBody", reqBodyClass)){
             if (jsonFieldIsNumberOrString(jsonObject, "requestBody")){
-                request.setRequestBody((RB) jsonObject.opt("requestBody"));
-
-                return request;
+                response.setResponseBody((RB) jsonObject.opt("requestBody"));
+            } else {
+                response.setResponseBody(JsonMapper.map(reqBodyClass, jsonObject.getJSONObject("requestBody")));
             }
-            request.setRequestBody(JsonMapper.map(reqBodyClass, jsonObject.getJSONObject("requestBody")));
-            return request;
+        } else {
+            response.setResponseBody(null);
         }
-        request.setRequestBody(null);
-        return request;
+        return response;
+    }
+
+    public static <RB> String toJSON(Response<RB> response){
+        try {
+            return new ObjectMapper().writeValueAsString(response);
+        } catch (JsonProcessingException exception){
+            LOGGER.error(exception.getMessage());
+        }
+        return "";
     }
 
     private static boolean jsonFieldIsNumberOrString(JSONObject jsonObject, String field){

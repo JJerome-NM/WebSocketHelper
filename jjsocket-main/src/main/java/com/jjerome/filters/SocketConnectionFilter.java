@@ -1,6 +1,6 @@
-package com.jjerome.models;
+package com.jjerome.filters;
 
-import org.jetbrains.annotations.NotNull;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.web.socket.WebSocketSession;
 
 public interface SocketConnectionFilter {
