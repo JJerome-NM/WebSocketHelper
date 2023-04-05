@@ -3,24 +3,28 @@ package com.jjerome.test.MainTests.secret_tests;
 import com.jjerome.annotations.*;
 import com.jjerome.dto.Request;
 import com.jjerome.models.MessageSender;
-import com.jjerome.models.SocketApplication;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketSession;
 
 @SocketController
+@RequiredArgsConstructor
 public class TestController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TestController.class);
 
-    private static final MessageSender MESSAGE_SENDER = SocketApplication.getMessageSender();
+    private final MessageSender messageSender;
+
+
 
     @SocketConnectMapping
     public void connectMap(WebSocketSession session){
 
         LOGGER.info(session.getId() + " - connected");
-        MESSAGE_SENDER.send(session.getId(), "/", "Hello user");
+        messageSender.send(session.getId(), "/", "Hello user");
     }
 
     @SocketDisconnectMapping
@@ -31,13 +35,13 @@ public class TestController {
     @SocketMapping(reqPath = "/hello")
     public void hello(Request<String> request){
 
-        MESSAGE_SENDER.send(request.getSessionID(), "/hello", "Hello client");
+        messageSender.send(request.getSessionID(), "/hello", "Hello client");
     }
 
     @SocketMapping(reqPath = "/setYear")
     public void setYear(Request<Integer> request){
 
-        MESSAGE_SENDER.send(request.getSessionID(), "/hello", "Hello client");
+        messageSender.send(request.getSessionID(), "/hello", "Hello client");
 
 //        return new Response<>("/", "Years - " + request.getRequestBody());
     }
@@ -47,7 +51,9 @@ public class TestController {
     public void getCar(Request<Car> request){
         System.out.println("Method car - " + request.getRequestBody());
 
-        MESSAGE_SENDER.send(request.getSessionID(), "/newCar", new Car(2003, "BMW"));
+        System.out.println(messageSender);
+
+        messageSender.send(request.getSessionID(), "/newCar", new Car(2003, "BMW"));
     }
 }
 

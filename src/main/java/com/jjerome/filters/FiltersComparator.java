@@ -7,15 +7,23 @@ import java.util.Comparator;
 
 public class FiltersComparator<F> implements Comparator<F> {
     @Override
-    public int compare(F f1, F f2) {
-        if (!f1.getClass().isAnnotationPresent(FilteringOrder.class)) return 1;
-        if (!f2.getClass().isAnnotationPresent(FilteringOrder.class)) return -1;
+    public int compare(F filter1, F filter2) {
+        if (!filter1.getClass().isAnnotationPresent(FilteringOrder.class)) {
+            return 1;
+        }
+        if (!filter2.getClass().isAnnotationPresent(FilteringOrder.class)) {
+            return -1;
+        }
 
-        int firstFilterOrder = f1.getClass().getDeclaredAnnotation(FilteringOrder.class).order();
-        int secondFilterOrder = f2.getClass().getDeclaredAnnotation(FilteringOrder.class).order();
+        if (filter1 == filter2){
+            return 0;
+        }
+
+        int firstFilterOrder = filter1.getClass().getDeclaredAnnotation(FilteringOrder.class).order();
+        int secondFilterOrder = filter2.getClass().getDeclaredAnnotation(FilteringOrder.class).order();
 
         int result = firstFilterOrder - secondFilterOrder;
 
-        return result != 0 ? result : f1 == f2 ? 0 : -1;
+        return result != 0 ? result : -1;
     }
 }

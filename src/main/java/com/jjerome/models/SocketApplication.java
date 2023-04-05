@@ -11,11 +11,12 @@ import com.jjerome.filters.SocketConnectionFilter;
 import com.jjerome.filters.SocketMessageFilter;
 import com.jjerome.mappers.ResponseMapper;
 
+import jakarta.annotation.PostConstruct;
 import lombok.NonNull;
 import org.reflections.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
+import org.springframework.context.ApplicationContext;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -29,22 +30,17 @@ import java.util.TreeSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-@Component
+//@Component
 public class SocketApplication extends TextWebSocketHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SocketApplication.class);
 
-    private static final int THREAD_POOL = Runtime.getRuntime().availableProcessors();
+    private final ExecutorService executorService;
 
-    private static MessageSender messageSender;
-
-    private final ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL);
-
-    private final Map<String, WebSocketSession> allSession = new HashMap<>();
+    private final Map<String, WebSocketSession> allSession;
 
     private final Map<String, BiConsumer<WebSocketSession, TextMessage>> methodMappings = new HashMap<>();
 
@@ -56,17 +52,32 @@ public class SocketApplication extends TextWebSocketHandler {
 
     private final Set<SocketMessageFilter> messageFilters = new TreeSet<>(new FiltersComparator<>());
 
-    private final SocketControllersContext controllersContext = new SocketControllersContext();
+    private final SocketControllersContext controllersContext;
 
-    private final RequestAccepter requestAccepter  = new RequestAccepter(
-            this.methodMappings, this.messageFilters, this.executorService);
+    private final ApplicationContext applicationContext;
 
+    private final RequestAccepter requestAccepter;
 
-    public SocketApplication(Class<?> runningClass){
-        messageSender = new MessageSender(this.allSession, this.executorService);
+    private final BeanUtil beanUtil;
 
-        this.addSocketControllers(runningClass);
+    public SocketApplication(SocketControllersContext socketControllersContext,
+                                ApplicationContext applicationContext,
+                                BeanUtil beanUtil, ExecutorService executorService,
+                                Map<String, WebSocketSession> allSessions,
+                                MessageSender messageSender){
 
+        this.controllersContext = socketControllersContext;
+        this.applicationContext = applicationContext;
+        this.beanUtil = beanUtil;
+        this.executorService = executorService;
+        this.allSession = allSessions;
+        this.requestAccepter = new RequestAccepter(messageSender, this.methodMappings, this.messageFilters,
+                executorService);
+    }
+
+    @PostConstruct
+    public void started(){
+        beanUtil.findSpringBootApplicationBeanClass().forEach(this::addSocketControllers);
         LOGGER.info("SocketApplication started");
     }
 
@@ -76,7 +87,7 @@ public class SocketApplication extends TextWebSocketHandler {
             for (SocketConnectionFilter filter : this.connectionFilters){
                 if (!filter.doFilter(session)){
                     try {
-                        Response<?> response = ResponseErrors.FILTERING_FAIL.get();
+                        Response<?> response = ResponseErrors.FILTERING_FAIL.getResponse();
                         session.sendMessage(new TextMessage(ResponseMapper.toJSON(response)));
                         session.close();
                         return;
@@ -107,8 +118,9 @@ public class SocketApplication extends TextWebSocketHandler {
     private void addSocketControllers(Class<?> runningClass){
 
         Reflections reflections = new Reflections(runningClass.getPackageName());
-        Set<Class<?>> classes = reflections.getTypesAnnotatedWith(SocketController.class);
-        classes.forEach(this::addSocketController);
+
+        reflections.getTypesAnnotatedWith(SocketController.class).forEach(this::addSocketController);
+
 
         if (!runningClass.isAnnotationPresent(SocketComponentsScan.class)) return;
 
@@ -124,7 +136,7 @@ public class SocketApplication extends TextWebSocketHandler {
     private void addSocketMessageFilters(Class<? extends SocketMessageFilter> filterClass){
         try {
             if (!filterClass.isAnnotationPresent(FilteringOrder.class)){
-                LOGGER.warn(filterClass.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTERING_ORDER.get());
+                LOGGER.warn(filterClass.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTERING_ORDER.getMessage());
             }
             this.messageFilters.add(filterClass.getDeclaredConstructor().newInstance());
         } catch (ReflectiveOperationException exception){
@@ -135,7 +147,7 @@ public class SocketApplication extends TextWebSocketHandler {
     private void addSocketConnectionFilters(Class<? extends SocketConnectionFilter> filterClass){
         try {
             if (!filterClass.isAnnotationPresent(FilteringOrder.class)){
-                LOGGER.warn(filterClass.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTERING_ORDER.get());
+                LOGGER.warn(filterClass.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTERING_ORDER.getMessage());
             }
             this.connectionFilters.add(filterClass.getDeclaredConstructor().newInstance());
         } catch (ReflectiveOperationException exception){
@@ -153,9 +165,5 @@ public class SocketApplication extends TextWebSocketHandler {
         this.methodMappings.putAll(this.controllersContext.addRequestsMappings(controllerClass));
 
         LOGGER.info(controllerClass.getName() + " controller added successfully");
-    }
-
-    public static MessageSender getMessageSender() {
-        return messageSender;
     }
 }

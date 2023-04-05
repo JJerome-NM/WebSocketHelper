@@ -14,9 +14,11 @@ import com.jjerome.mappers.RequestMapper;
 import com.jjerome.models.MessageSender;
 import com.jjerome.models.ResponseErrors;
 import com.jjerome.filters.SocketMethodFilter;
-import com.jjerome.models.SocketApplication;
+
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -35,10 +37,13 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 @Component
+@RequiredArgsConstructor
 public class SocketControllersContext {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(SocketControllersContext.class);
 
-    private final MessageSender messageSender = SocketApplication.getMessageSender();
+    private final ApplicationContext context;
+    private final MessageSender messageSender;
 
 
     public Class<?> getMethodRequestGeneric(Method method){
@@ -67,21 +72,21 @@ public class SocketControllersContext {
         List<Consumer<WebSocketSession>> connectionMappings = new ArrayList<>();
 
         for (Method method : controllerClass.getDeclaredMethods()){
-            if (!method.isAnnotationPresent(SocketConnectMapping.class)) continue;
-            if (!this.validateMappingMethod(method, void.class, WebSocketSession.class)) continue;
-
-            try {
-                Object methodObject = controllerClass.getDeclaredConstructor().newInstance();
-                connectionMappings.add((webSocketSession) -> {
-                    try {
-                        method.invoke(methodObject, webSocketSession);
-                    } catch (InvocationTargetException | IllegalAccessException exception){
-                        LOGGER.error(exception.getMessage());
-                    }
-                });
-            } catch (ReflectiveOperationException exception){
-                throw new RuntimeException("Socket controller constructor exception");
+            if (!method.isAnnotationPresent(SocketConnectMapping.class)) {
+                continue;
             }
+            if (!this.validateMappingMethod(method, void.class, WebSocketSession.class)) {
+                continue;
+            }
+
+            Object methodObject = context.getBean(controllerClass);
+            connectionMappings.add((webSocketSession) -> {
+                try {
+                    method.invoke(methodObject, webSocketSession);
+                } catch (InvocationTargetException | IllegalAccessException exception){
+                    LOGGER.error(exception.getMessage());
+                }
+            });
         }
         return connectionMappings;
     }
@@ -90,33 +95,36 @@ public class SocketControllersContext {
         List<BiConsumer<WebSocketSession, CloseStatus>> disconnectMappings = new ArrayList<>();
 
         for (Method method : controllerClass.getDeclaredMethods()){
-            if (!method.isAnnotationPresent(SocketDisconnectMapping.class)) continue;
-            if (!this.validateMappingMethod(method, void.class, WebSocketSession.class, CloseStatus.class)) continue;
-
-            try {
-                Object methodObject = controllerClass.getDeclaredConstructor().newInstance();
-
-                disconnectMappings.add((webSocketSession, closeStatus) -> {
-                    try {
-                        method.invoke(methodObject, webSocketSession, closeStatus);
-                    } catch (InvocationTargetException | IllegalAccessException exception){
-                        LOGGER.error(exception.getMessage());
-                    }
-                });
-            } catch (ReflectiveOperationException exception){
-                throw new RuntimeException("Socket controller constructor exception");
+            if (!method.isAnnotationPresent(SocketDisconnectMapping.class)) {
+                continue;
             }
+            if (!this.validateMappingMethod(method, void.class, WebSocketSession.class, CloseStatus.class)) {
+                continue;
+            }
+
+            Object methodObject = context.getBean(controllerClass);
+
+            disconnectMappings.add((webSocketSession, closeStatus) -> {
+                try {
+                    method.invoke(methodObject, webSocketSession, closeStatus);
+                } catch (InvocationTargetException | IllegalAccessException exception){
+                    LOGGER.error(exception.getMessage());
+                }
+            });
         }
         return disconnectMappings;
     }
 
-    public Map<String, BiConsumer<WebSocketSession, TextMessage>> addRequestsMappings(
-            Class<?> controllerClass){
+    public Map<String, BiConsumer<WebSocketSession, TextMessage>> addRequestsMappings(Class<?> controllerClass){
         Map<String, BiConsumer<WebSocketSession, TextMessage>> socketMappings = new HashMap<>();
 
         for (Method method : controllerClass.getDeclaredMethods()) {
-            if (!method.isAnnotationPresent(SocketMapping.class)) continue;
-            if (!this.validateMappingMethod(method, void.class, Request.class)) continue;
+            if (!method.isAnnotationPresent(SocketMapping.class)) {
+                continue;
+            }
+            if (!this.validateMappingMethod(method, void.class, Request.class)) {
+                continue;
+            }
 
             SocketMapping socketMapping = method.getAnnotation(SocketMapping.class);
 
@@ -125,23 +133,23 @@ public class SocketControllersContext {
                         "; Method - " + method.getName() + " path is already in use");
             }
 
-            try {
                 Set<SocketMethodFilter> methodFilters = new TreeSet<>(new FiltersComparator<>());
 
                 if (method.isAnnotationPresent(SocketMappingFilters.class)){
-                    for (Class<? extends  SocketMethodFilter> filter :
+                    for (Class<? extends SocketMethodFilter> filter :
                             method.getDeclaredAnnotation(SocketMappingFilters.class).filters()){
 
                         if (!filter.isAnnotationPresent(FilteringOrder.class)){
-                            LOGGER.warn(filter.getName() + " " + ExceptionMessage.CLASS_DONT_HAVE_FILTERING_ORDER.get());
+                            LOGGER.warn(filter.getName() + " "
+                                    + ExceptionMessage.CLASS_DONT_HAVE_FILTERING_ORDER.getMessage());
                         }
 
-                        methodFilters.add(filter.getDeclaredConstructor().newInstance());
+                        methodFilters.add(context.getBean(filter));
                     }
                 }
 
                 Class<?> reqGeneric = this.getMethodRequestGeneric(method);
-                Object methodObject = controllerClass.getDeclaredConstructor().newInstance();
+                Object methodObject = context.getBean(controllerClass);
 
                 socketMappings.put(socketMapping.reqPath(), (session ,message) -> {
                     Request<?> request = RequestMapper.fromJSON(message.getPayload(), reqGeneric);
@@ -149,13 +157,13 @@ public class SocketControllersContext {
 
                     for (SocketMethodFilter filter : methodFilters){
                         if (!filter.doFilter(session, message, request)){
-                            messageSender.send(session.getId(), ResponseErrors.FILTERING_FAIL.get());
+                            messageSender.send(session.getId(), ResponseErrors.FILTERING_FAIL.getResponse());
                             return;
                         }
                     }
 
                     if (request.getRequestBody() == null){
-                        messageSender.send(session.getId(), ResponseErrors.REQUEST_BODY_NOT_REQ.get());
+                        messageSender.send(session.getId(), ResponseErrors.REQUEST_BODY_NOT_REQ.getResponse());
                         return;
                     }
 
@@ -165,9 +173,6 @@ public class SocketControllersContext {
                         LOGGER.error("Method invoke exception", exception);
                     }
                 });
-            } catch (ReflectiveOperationException exception){
-                throw new RuntimeException("Socket controller constructor exception");
-            }
         }
         return socketMappings;
     }

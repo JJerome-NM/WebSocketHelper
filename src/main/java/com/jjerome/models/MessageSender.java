@@ -2,7 +2,7 @@ package com.jjerome.models;
 
 import com.jjerome.dto.Response;
 import com.jjerome.mappers.ResponseMapper;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.socket.TextMessage;
@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class MessageSender {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MessageSender.class);

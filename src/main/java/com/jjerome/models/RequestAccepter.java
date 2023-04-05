@@ -1,9 +1,9 @@
 package com.jjerome.models;
 
 import com.jjerome.filters.SocketMessageFilter;
+import jakarta.validation.constraints.NotNull;
+import lombok.RequiredArgsConstructor;
 import org.json.JSONObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
@@ -12,9 +12,10 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 
+@RequiredArgsConstructor
 public class RequestAccepter {
 
-    private static final MessageSender MESSAGE_SENDER = SocketApplication.getMessageSender();
+    private final MessageSender messageSender;
 
     private final Map<String, BiConsumer<WebSocketSession ,TextMessage>> methodMappings;
 
@@ -22,19 +23,11 @@ public class RequestAccepter {
 
     private final ExecutorService executorService;
 
-    public RequestAccepter(Map<String, BiConsumer<WebSocketSession ,TextMessage>> methodMappings,
-                           Set<SocketMessageFilter> messageFilters,
-                           ExecutorService executorService) {
-        this.methodMappings = methodMappings;
-        this.messageFilters = messageFilters;
-        this.executorService = executorService;
-    }
-
-    public void acceptMessage(WebSocketSession session, TextMessage message){
+    public void acceptMessage(@NotNull WebSocketSession session, @NotNull TextMessage message){
         this.executorService.submit(() -> {
             for (SocketMessageFilter filter : this.messageFilters){
                 if (!filter.doFilter(session, message)){
-                    MESSAGE_SENDER.send(session.getId(), ResponseErrors.FILTERING_FAIL.get());
+                    messageSender.send(session.getId(), ResponseErrors.FILTERING_FAIL.getResponse());
                 }
             }
 
@@ -44,10 +37,10 @@ public class RequestAccepter {
                 if (this.methodMappings.containsKey(requestPath)){
                     this.methodMappings.get(requestPath).accept(session, message);
                 } else {
-                    MESSAGE_SENDER.send(session.getId(), ResponseErrors.MAPPING_NOT_FOUND.get());
+                    messageSender.send(session.getId(), ResponseErrors.MAPPING_NOT_FOUND.getResponse());
                 }
             } else {
-                MESSAGE_SENDER.send(session.getId(), ResponseErrors.REQUEST_PATH_NULL.get());
+                messageSender.send(session.getId(), ResponseErrors.REQUEST_PATH_NULL.getResponse());
             }
         });
     }
