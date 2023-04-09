@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 
-public class SocketHandlerConfiguration  implements WebSocketConfigurer {
+public class SocketHandlerConfiguration implements WebSocketConfigurer {
 
     @Autowired
     private SocketApplication socketApplication;

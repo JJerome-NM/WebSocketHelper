@@ -1,8 +1,5 @@
 package com.jjerome.annotations;
 
-import org.springframework.core.annotation.AliasFor;
-import org.springframework.web.bind.annotation.GetMapping;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

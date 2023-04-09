@@ -56,9 +56,11 @@ public class SocketControllersContext {
                                          Class<?> returnClass, Class<?>... parameterClasses){
         if (!method.isAnnotationPresent(methodAnnotation)) {
             return false;
-        } else if (method.getParameterCount() != parameterClasses.length) {
+        }
+        if (method.getParameterCount() != parameterClasses.length) {
             throw new MappingParametersException("The number of parameters is not " + parameterClasses.length);
-        } else if (method.getReturnType() != returnClass) {
+        }
+        if (method.getReturnType() != returnClass) {
             throw new MappingParametersException("Return type is not " + returnClass.getName());
         }
 
@@ -75,10 +77,8 @@ public class SocketControllersContext {
         List<Consumer<WebSocketSession>> connectionMappings = new ArrayList<>();
 
         for (Method method : controllerClass.getDeclaredMethods()){
-            if (!this.validateMappingMethod(method, SocketConnectMapping.class, void.class, WebSocketSession.class)) {
-                continue;
-            }
-            if (this.addedConnectMethods.contains(method)){
+            if (!this.validateMappingMethod(method, SocketConnectMapping.class, void.class, WebSocketSession.class)
+                    || this.addedConnectMethods.contains(method)) {
                 continue;
             }
 
@@ -100,10 +100,8 @@ public class SocketControllersContext {
 
         for (Method method : controllerClass.getDeclaredMethods()){
             if (!this.validateMappingMethod(method, SocketDisconnectMapping.class, void.class, WebSocketSession.class,
-                    CloseStatus.class)) {
-                continue;
-            }
-            if (this.addedDisconnectMethods.contains(method)){
+                    CloseStatus.class)
+                    || this.addedDisconnectMethods.contains(method)) {
                 continue;
             }
 

@@ -1,6 +1,5 @@
 package com.jjerome.models;
 
-import com.jjerome.annotations.SocketComponentsScan;
 import com.jjerome.annotations.SocketController;
 import com.jjerome.context.SocketControllersContext;
 import com.jjerome.dto.Response;
@@ -14,7 +13,9 @@ import lombok.NonNull;
 import org.reflections.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -116,21 +117,24 @@ public class SocketApplication extends TextWebSocketHandler {
     }
 
     private void addSocketControllers(Class<?> runningClass){
-
         Reflections reflections = new Reflections(runningClass.getPackageName());
-
         reflections.getTypesAnnotatedWith(SocketController.class).forEach(this::addSocketController);
 
-
-        if (!runningClass.isAnnotationPresent(SocketComponentsScan.class)) return;
-
-        for(String pack : runningClass.getAnnotation(SocketComponentsScan.class).packages()){
-            reflections = new Reflections(pack);
-
-            reflections.getTypesAnnotatedWith(SocketController.class).forEach(this::addSocketController);
-            reflections.getSubTypesOf(SocketMessageFilter.class).forEach(this::addSocketMessageFilters);
-            reflections.getSubTypesOf(SocketConnectionFilter.class).forEach(this::addSocketConnectionFilters);
+        for (String pack : runningClass.getAnnotation(SpringBootApplication.class).scanBasePackages()){
+            this.scanPackage(new Reflections(pack));
         }
+
+        if (runningClass.isAnnotationPresent(ComponentScan.class)){
+            for(String pack : runningClass.getAnnotation(ComponentScan.class).basePackages()){
+                this.scanPackage(new Reflections(pack));
+            }
+        }
+    }
+
+    private void scanPackage(Reflections reflections){
+        reflections.getTypesAnnotatedWith(SocketController.class).forEach(this::addSocketController);
+        reflections.getSubTypesOf(SocketMessageFilter.class).forEach(this::addSocketMessageFilters);
+        reflections.getSubTypesOf(SocketConnectionFilter.class).forEach(this::addSocketConnectionFilters);
     }
 
     private void addSocketMessageFilters(Class<? extends SocketMessageFilter> filterClass){

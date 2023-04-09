@@ -10,9 +10,11 @@ public class FiltersComparator<F> implements Comparator<F> {
     public int compare(F filter1, F filter2) {
         if (!filter1.getClass().isAnnotationPresent(FilteringOrder.class)) {
             return 1;
-        } else if (!filter2.getClass().isAnnotationPresent(FilteringOrder.class)) {
+        }
+        if (!filter2.getClass().isAnnotationPresent(FilteringOrder.class)) {
             return -1;
-        } else if (filter1 == filter2){
+        }
+        if (filter1 == filter2){
             return 0;
         }
 
