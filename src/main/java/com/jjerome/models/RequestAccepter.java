@@ -15,7 +15,7 @@ import java.util.function.BiConsumer;
 @RequiredArgsConstructor
 public class RequestAccepter {
 
-    private final MessageSender MESSAGE_SENDER = SocketApplication.getMessageSender();
+    private final MessageSender messageSender;
 
     private final Map<String, BiConsumer<WebSocketSession ,TextMessage>> methodMappings;
 
@@ -27,7 +27,8 @@ public class RequestAccepter {
         this.executorService.submit(() -> {
             for (SocketMessageFilter filter : this.messageFilters){
                 if (!filter.doFilter(session, message)){
-                    MESSAGE_SENDER.send(session.getId(), ResponseErrors.FILTERING_FAIL.getResponse());
+                    messageSender.send(session.getId(), ResponseErrors.FILTERING_FAIL.getResponse());
+                    return;
                 }
             }
 
@@ -37,10 +38,10 @@ public class RequestAccepter {
                 if (this.methodMappings.containsKey(requestPath)){
                     this.methodMappings.get(requestPath).accept(session, message);
                 } else {
-                    MESSAGE_SENDER.send(session.getId(), ResponseErrors.MAPPING_NOT_FOUND.getResponse());
+                    messageSender.send(session.getId(), ResponseErrors.MAPPING_NOT_FOUND.getResponse());
                 }
             } else {
-                MESSAGE_SENDER.send(session.getId(), ResponseErrors.REQUEST_PATH_NULL.getResponse());
+                messageSender.send(session.getId(), ResponseErrors.REQUEST_PATH_NULL.getResponse());
             }
         });
     }

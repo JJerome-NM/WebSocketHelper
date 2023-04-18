@@ -1,10 +1,11 @@
 package com.jjerome.filters;
 
-import jakarta.validation.constraints.NotNull;
+import org.springframework.stereotype.Component;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
+@Component
 public interface SocketMessageFilter {
 
-    boolean doFilter(@NotNull WebSocketSession session, @NotNull TextMessage message);
+    boolean doFilter(WebSocketSession session, TextMessage message);
 }

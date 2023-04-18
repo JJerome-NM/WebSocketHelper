@@ -2,7 +2,6 @@ package com.jjerome.mappers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jjerome.JsonMapper;
 import com.jjerome.dto.Response;
 import com.jjerome.models.MessageSender;
 import org.json.JSONObject;
@@ -49,9 +48,9 @@ public class ResponseMapper {
     private static boolean validateJsonField(JSONObject jsonObject, String field, Class<?> fieldClass){
         if (jsonObject.has(field)){
             Class<?> optFieldClass = jsonObject.opt(field).getClass();
-            return optFieldClass == JSONObject.class || optFieldClass == fieldClass
-                    || optFieldClass.getSuperclass() == Number.class
-                    && fieldClass.getSuperclass() == Number.class;
+            return optFieldClass == JSONObject.class
+                    || optFieldClass == fieldClass
+                    || optFieldClass.getSuperclass() == Number.class && fieldClass.getSuperclass() == Number.class;
         }
         return false;
     }

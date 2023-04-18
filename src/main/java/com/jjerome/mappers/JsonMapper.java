@@ -1,46 +1,27 @@
-package com.jjerome;
+package com.jjerome.mappers;
 
-import lombok.*;
-import org.apache.coyote.Request;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import lombok.SneakyThrows;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.lang.reflect.*;
-import java.util.*;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 public class JsonMapper {
-
-    public static void main(String[] args) {
-
-        String json = """
-                {
-                    "id": 1,
-                    "cypher": "ІПЗ",
-                    "academicYear": 1,
-                    "number": 1.2,
-                    "members": [
-                        {"firstName": "Arsen", "lastName": "Sydoryk"},
-                        {"firstName": "Arsen", "lastName": "Sydoryk"},
-                        {"firstName": "Arsen", "lastName": "Sydoryk"}
-                    ],
-                    "map": [
-                        {
-                            "first": "second"
-                        },
-                        {
-                            "second": "third"
-                        }
-                    ]
-                }
-                """;
-
-
-        Group group = map(Group.class, json);
-        System.out.println(group);
-
-
-    }
 
     public static <T> T map(Class<T> clazz, String json){
         return map(clazz, new JSONObject(json));
@@ -221,47 +202,4 @@ public class JsonMapper {
         }
 
     }
-
-
-    @AllArgsConstructor
-    @NoArgsConstructor
-    @Setter @Getter
-    private static class Group{
-
-        private long id;
-        private String cypher;
-        private int academicYear;
-        private double number;
-
-        private Set<Member> members;
-        private Map<String, String> map;
-
-        @Override
-        public String toString() {
-            return "Group{" +
-                    "id=" + id +
-                    ", cypher='" + cypher + '\'' +
-                    ", academicYear=" + academicYear +
-                    ", number=" + number +
-                    ", members=" + members +
-                    ", maps=" + map +
-                    '}';
-        }
-    }
-
-
-    private static class Member{
-
-        private String firstName;
-        private String lastName;
-
-        @Override
-        public String toString() {
-            return "Member{" +
-                    "firstName='" + firstName + '\'' +
-                    ", lastName='" + lastName + '\'' +
-                    '}';
-        }
-    }
-
 }

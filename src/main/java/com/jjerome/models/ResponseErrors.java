@@ -3,7 +3,6 @@ package com.jjerome.models;
 import com.jjerome.dto.Response;
 import lombok.Getter;
 
-
 @Getter
 public enum ResponseErrors {
     FILTERING_FAIL("/error/filter", "Filtering failed"),
@@ -19,5 +18,4 @@ public enum ResponseErrors {
     ResponseErrors(String path, String message) {
         this.response = new Response<>(path, message);
     }
-
 }

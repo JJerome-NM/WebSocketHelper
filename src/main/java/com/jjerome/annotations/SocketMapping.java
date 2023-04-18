@@ -11,7 +11,7 @@ import java.lang.annotation.Target;
 @Documented
 public @interface SocketMapping{
 
-    String resPath() default "";
-
     String reqPath();
+
+    String resPath() default "";
 }
